@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dasbor Real-time Smart Power Meter IoT | ELEVATE 2026</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+    <!-- Sidebar Navigasi (kiri di desktop, bar atas di layar kecil) -->
+    <aside class="sticky top-0 z-50 md:fixed md:inset-y-0 md:left-0 md:w-64 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950/90 backdrop-blur">
+        <div class="px-4 py-3 md:py-6 flex flex-wrap items-center justify-between gap-3 md:flex-col md:items-stretch md:justify-start md:gap-6 md:h-full">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                    <i class="fa-solid fa-bolt text-amber-400 text-lg"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-base tracking-wide">ELEVATE 2026</span>
+                    <span class="text-xs text-slate-400 block -mt-1">Edge TinyML &amp; Smart Metrology</span>
+                </div>
+            </div>
+
+            <nav class="flex md:flex-col gap-1 text-sm font-medium">
+                <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30"><i class="fa-solid fa-gauge-high w-4 text-center"></i><span>Dasbor Real-time</span></a>
+                <a href="/history" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition"><i class="fa-solid fa-clock-rotate-left w-4 text-center"></i><span>Riwayat &amp; Analitik</span></a>
+            </nav>
+            <!-- Status Koneksi -->
+            <div class="md:mt-auto flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/60 text-xs">
+                <span id="wsDot" class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+                <span id="wsStatus" class="text-slate-300 font-medium">Menghubungkan...</span>
+            </div>
+        </div>
+    </aside>
+
+    <div class="md:pl-64">
+
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+        <!-- Banner DSS Rekomendasi Cerdas -->
+        <section id="dssBanner" class="p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-emerald-950/30 border-emerald-500/30">
+            <div id="dssIconWrapper" class="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 mt-0.5">
+                <i id="dssIcon" class="fa-solid fa-shield-halved text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <div class="flex items-center gap-2">
+                    <span id="dssBadge" class="px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-300">
+                        STATUS: OPTIMAL
+                    </span>
+                    <span id="lastUpdated" class="text-xs text-slate-500 font-mono">--:--:--</span>
+                </div>
+                <h3 id="dssTitle" class="text-base font-bold text-white mt-1">Sistem Dalam Batas Aman</h3>
+                <p id="dssMessage" class="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                    Penggunaan energi stabil. Saldo diproyeksikan mencukupi kebutuhan operasional rumah.
+                </p>
+            </div>
+        </section>
+
+        <!-- Daya Kontrak Rumah (statis) -->
+        <section class="bg-slate-800/40 px-4 py-3 rounded-2xl border border-slate-700/60 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-house-bolt text-amber-400"></i>
+                <span class="text-sm text-slate-300">Daya kontrak rumah (tetap)</span>
+            </div>
+            <span class="font-mono font-bold text-white text-sm">{{ kontrak_daya_va|int }} VA</span>
+        </section>
+
+        <!-- Kartu Metrik Telemetri Utama -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- Tegangan Efektif -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
+                <div class="flex items-center justify-between text-slate-400 text-xs">
+                    <span>Tegangan RMS</span>
+                    <i class="fa-solid fa-plug text-emerald-400"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="valVoltage" class="text-2xl font-bold font-mono text-white">0.0</span>
+                    <span class="text-xs text-slate-400">Volt</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">GPIO35 · ADC1_CH7</span>
+            </div>
+
+            <!-- Arus Efektif -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
+                <div class="flex items-center justify-between text-slate-400 text-xs">
+                    <span>Kuat Arus RMS</span>
+                    <i class="fa-solid fa-gauge text-purple-400"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="valCurrent" class="text-2xl font-bold font-mono text-white">0.000</span>
+                    <span class="text-xs text-slate-400">Ampere</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">GPIO34 · ADC1_CH6</span>
+            </div>
+
+            <!-- Daya Aktif (Watt) -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
+                <div class="flex items-center justify-between text-slate-400 text-xs">
+                    <span>Daya Aktif (Riil)</span>
+                    <i class="fa-solid fa-lightbulb text-sky-400"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="valPower" class="text-2xl font-bold font-mono text-sky-400">0.0</span>
+                    <span class="text-xs text-slate-400">Watt</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Rata-rata v·i 200 ms + EMA</span>
+            </div>
+
+            <!-- Daya Semu (VA) & Kapasitas MCB -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
+                <div class="flex items-center justify-between text-slate-400 text-xs">
+                    <span>Daya Semu (VA)</span>
+                    <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="valApparent" class="text-2xl font-bold font-mono text-amber-400">0.0</span>
+                    <span class="text-xs text-slate-400">VA</span>
+                </div>
+                <div class="w-full bg-slate-700/50 h-1.5 rounded-full mt-2 overflow-hidden">
+                    <div id="barLoadPct" class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <span id="textLoadPct" class="text-[10px] text-slate-400 mt-1 block font-mono">0% dari batas MCB</span>
+            </div>
+        </section>
+
+        <!-- Kartu Token & Power Factor -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Saldo Token Listrik -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
+                <div class="flex items-center justify-between text-slate-400 text-xs">
+                    <span>Sisa Saldo Token</span>
+                    <i class="fa-solid fa-wallet text-emerald-400"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="valSaldo" class="text-2xl font-bold font-mono text-emerald-400">0.00</span>
+                    <span class="text-xs text-slate-400">kWh</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Penyimpanan MicroSD Murni (/saldo.txt)</span>
+            </div>
+
+            <!-- Dynamic Token Runway (Estimasi Habis) -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
+                <div class="flex items-center justify-between text-slate-400 text-xs">
+                    <span>Dynamic Runway</span>
+                    <i class="fa-solid fa-hourglass-half text-amber-400"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="valRunway" class="text-2xl font-bold font-mono text-white">0.0</span>
+                    <span class="text-xs text-slate-400">Jam Tersisa</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Saldo ÷ rata-rata prediksi 6 jam (TinyML)</span>
+            </div>
+
+            <!-- Power Factor (Faktor Daya) -->
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
+                <div class="flex items-center justify-between text-slate-400 text-xs">
+                    <span>Faktor Daya (Cos &phi;)</span>
+                    <i class="fa-solid fa-compass text-sky-400"></i>
+                </div>
+                <div class="mt-2 flex items-baseline gap-1">
+                    <span id="valPf" class="text-2xl font-bold font-mono text-white">0.0</span>
+                    <span class="text-xs text-slate-400">%</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Daya Riil ÷ Daya Semu (dalam persen)</span>
+            </div>
+        </section>
+
+        <!-- Grafik Monitoring Real-time & Proyeksi Multi-Horizon TinyML -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Grafik Line Live Watt vs VA (2 Kolom) -->
+            <div class="lg:col-span-2 bg-slate-800/50 border border-slate-700/60 p-5 rounded-2xl shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-amber-400"></i> Aliran Beban Real-time: Watt vs VA
+                    </h3>
+                    <span class="text-xs text-slate-500 font-mono">Interval 2 Detik · Batas kontrak {{ kontrak_daya_va|int }} VA</span>
+                </div>
+                <div class="relative h-[26rem] md:h-[32rem] w-full">
+                    <canvas id="liveChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Grafik Bar Proyeksi TinyML Q1 - Q4 (1 Kolom) -->
+            <div class="bg-slate-800/50 border border-slate-700/60 p-5 rounded-2xl shadow-lg flex flex-col">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-brain text-purple-400"></i> Proyeksi TinyML 24 Jam
+                    </h3>
+                    <span class="text-[11px] text-slate-500">Multi-Horizon</span>
+                </div>
+                <div class="relative flex-1 min-h-[14rem] w-full">
+                    <canvas id="forecastChart"></canvas>
+                </div>
+                <p id="forecastSummary" class="text-xs text-slate-400 mt-3 text-center">Menunggu prediksi dari ESP32...</p>
+            </div>
+        </section>
+
+    </main>
+    </div>
+
+    <!-- Script Koneksi WebSocket & Pembaruan UI -->
+    <script>
+        let liveChart = null;
+        let forecastChart = null;
+        const MAX_POINTS = 60; // 60 titik x 2 detik = 2 menit
+
+        let liveLabels = [];
+        let liveWatts = [];
+        let liveApparents = [];
+        let wsOpen = false;
+        let lastPacketMs = 0;
+
+        const CONTRACT_VA = {{ kontrak_daya_va|int }}; // statis, ditentukan server
+
+        // Inisialisasi Grafik
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            connectWebSocket();
+        });
+
+        // Garis batas kontrak: digambar hanya bila masuk rentang sumbu Y,
+        // sehingga tidak memaksa skala melebar sampai 1300 VA.
+        const contractLimitPlugin = {
+            id: 'contractLimit',
+            afterDatasetsDraw(chart) {
+                const { ctx, chartArea, scales: { y } } = chart;
+                if (CONTRACT_VA < y.min || CONTRACT_VA > y.max) return;
+                const py = y.getPixelForValue(CONTRACT_VA);
+                ctx.save();
+                ctx.strokeStyle = '#f43f5e';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([6, 4]);
+                ctx.beginPath();
+                ctx.moveTo(chartArea.left, py);
+                ctx.lineTo(chartArea.right, py);
+                ctx.stroke();
+                ctx.fillStyle = '#f43f5e';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(`Batas kontrak ${CONTRACT_VA} VA`, chartArea.right - 4, py - 5);
+                ctx.restore();
+            }
+        };
+
+        // Skala Y mengikuti data (zoom otomatis) agar perubahan kecil terlihat.
+        function fitLiveYAxis() {
+            const all = liveWatts.concat(liveApparents);
+            if (!all.length) return;
+            const lo = Math.min(...all), hi = Math.max(...all);
+            const span = Math.max(hi - lo, 4);          // rentang minimum 4 satuan
+            const pad = span * 0.3;
+            const y = liveChart.options.scales.y;
+            y.min = Math.max(0, Math.floor(lo - pad));
+            y.max = Math.ceil(hi + pad);
+        }
+
+        function initCharts() {
+            // Live Line Chart
+            const ctxLive = document.getElementById('liveChart').getContext('2d');
+            liveChart = new Chart(ctxLive, {
+                type: 'line',
+                data: {
+                    labels: liveLabels,
+                    datasets: [
+                        {
+                            label: 'Daya Semu (VA)',
+                            data: liveApparents,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 2
+                        },
+                        {
+                            label: 'Daya Aktif (W)',
+                            data: liveWatts,
+                            borderColor: '#38bdf8',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' } },
+                        y: {
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            ticks: { color: '#94a3b8', maxTicksLimit: 10 },
+                            title: { display: true, text: 'Beban (W / VA)', color: '#94a3b8' },
+                            beginAtZero: false
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                },
+                plugins: [contractLimitPlugin]
+            });
+
+            // TinyML Horizon Forecast Bar Chart
+            const ctxForecast = document.getElementById('forecastChart').getContext('2d');
+            forecastChart = new Chart(ctxForecast, {
+                type: 'bar',
+                data: {
+                    labels: ['0-6 Jam (Q1)', '6-12 Jam (Q2)', '12-18 Jam (Q3)', '18-24 Jam (Q4)'],
+                    datasets: [{
+                        label: 'Proyeksi Energi (kWh)',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#a855f7', '#818cf8', '#38bdf8', '#34d399'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+                        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' }, suggestedMin: 0 }
+                    },
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y.toFixed(3)} kWh` } } }
+                }
+            });
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            const ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                wsOpen = true;
+                lastPacketMs = 0;
+                refreshConnStatus();
+            };
+
+            ws.onmessage = (event) => {
+                const data = jsonParseSafe(event.data);
+                if (data) {
+                    if (data.device_ready) {
+                        lastPacketMs = Date.now() - (Number(data.age_s) || 0) * 1000;
+                    }
+                    updateDashboardUI(data);
+                    refreshConnStatus();
+                }
+            };
+
+            ws.onclose = () => {
+                wsOpen = false;
+                document.getElementById('wsDot').className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse";
+                document.getElementById('wsStatus').innerText = "Terputus (Reconnecting...)";
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function refreshConnStatus() {
+            if (!wsOpen) return;
+            const dot = document.getElementById('wsDot');
+            const txt = document.getElementById('wsStatus');
+            if (lastPacketMs === 0) {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+                txt.innerText = "Server terhubung · menunggu ESP32";
+            } else if (Date.now() - lastPacketMs > 10000) {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+                txt.innerText = "ESP32 tidak mengirim data";
+            } else {
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                txt.innerText = "Live · ESP32 terhubung";
+            }
+        }
+        setInterval(refreshConnStatus, 1000);
+
+        function jsonParseSafe(str) {
+            try { return JSON.parse(str); } catch (e) { return null; }
+        }
+
+function updateDashboardUI(data) {
+            // Update Angka Metrologi (format persis sesuai payload ESP32)
+            const runway = Number(data.runway_hours || 0);
+            document.getElementById('valVoltage').innerText = Number(data.voltage || 0).toFixed(1);
+            document.getElementById('valCurrent').innerText = Number(data.current || 0).toFixed(3);
+            document.getElementById('valPower').innerText = Number(data.power || 0).toFixed(1);
+            document.getElementById('valApparent').innerText = Number(data.apparent_power || 0).toFixed(1);
+            document.getElementById('valSaldo').innerText = Number(data.saldo_kwh || 0).toFixed(2);
+            // Firmware mengirim 999 saat tidak ada beban; OLED membatasi 99.9
+            document.getElementById('valRunway').innerText = runway.toFixed(1);
+            // pf dikirim ESP32 dalam persen (0-100)
+            document.getElementById('valPf').innerText = Number(data.pf || 0).toFixed(1);
+
+            // Kapasitas MCB (%) terhadap kontrak statis
+            const loadPct = Math.min(100, Math.round((Number(data.apparent_power || 0) / CONTRACT_VA) * 100));
+            const bar = document.getElementById('barLoadPct');
+            bar.style.width = loadPct + '%';
+            bar.className = "h-full rounded-full transition-all duration-300 " + (loadPct >= 85 ? "bg-rose-500" : "bg-amber-400");
+            document.getElementById('textLoadPct').innerText = `${loadPct}% dari batas ${CONTRACT_VA} VA`;
+
+            // Banner DSS
+            if (data.dss) {
+                const dss = data.dss;
+                document.getElementById('dssBadge').innerText = `STATUS: ${dss.status}`;
+                document.getElementById('dssTitle').innerText = dss.title;
+                document.getElementById('dssMessage').innerText = dss.message;
+                document.getElementById('lastUpdated').innerText = (data.timestamp || '').split(' ')[1] || '';
+
+                const banner = document.getElementById('dssBanner');
+                if (dss.status === 'DANGER') {
+                    banner.className = "p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-rose-950/40 border-rose-500/40";
+                    document.getElementById('dssBadge').className = "px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-rose-500/20 text-rose-300";
+                    document.getElementById('dssIconWrapper').className = "p-2.5 rounded-xl bg-rose-500/20 text-rose-400 mt-0.5";
+                    document.getElementById('dssIcon').className = "fa-solid fa-triangle-exclamation text-xl";
+                } else if (dss.status === 'WARNING') {
+                    banner.className = "p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-amber-950/40 border-amber-500/40";
+                    document.getElementById('dssBadge').className = "px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-300";
+                    document.getElementById('dssIconWrapper').className = "p-2.5 rounded-xl bg-amber-500/20 text-amber-400 mt-0.5";
+                    document.getElementById('dssIcon').className = "fa-solid fa-bell text-xl";
+                } else if (dss.status === 'INFO') {
+                    banner.className = "p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-sky-950/40 border-sky-500/40";
+                    document.getElementById('dssBadge').className = "px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-sky-500/20 text-sky-300";
+                    document.getElementById('dssIconWrapper').className = "p-2.5 rounded-xl bg-sky-500/20 text-sky-400 mt-0.5";
+                    document.getElementById('dssIcon').className = "fa-solid fa-circle-info text-xl";
+                } else {
+                    banner.className = "p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-emerald-950/30 border-emerald-500/30";
+                    document.getElementById('dssBadge').className = "px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-300";
+                    document.getElementById('dssIconWrapper').className = "p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 mt-0.5";
+                    document.getElementById('dssIcon').className = "fa-solid fa-shield-halved text-xl";
+                }
+            }
+
+            // Update Live Line Chart (hanya data segar dari ESP32)
+            const fresh = data.device_ready !== false && (data.age_s === undefined || Number(data.age_s) < 10);
+            if (fresh) {
+                const timeLabel = (data.timestamp || '').split(' ')[1] || new Date().toLocaleTimeString();
+                if (liveLabels.length >= MAX_POINTS) {
+                    liveLabels.shift();
+                    liveWatts.shift();
+                    liveApparents.shift();
+                }
+                liveLabels.push(timeLabel);
+                liveWatts.push(Number(data.power || 0));
+                liveApparents.push(Number(data.apparent_power || 0));
+                fitLiveYAxis();
+                liveChart.update('none');
+            }
+
+            // TinyML Forecast: q1..q4 = energi (kWh) per jendela 6 jam ke depan
+            if (forecastChart) {
+                const q = ['q1', 'q2', 'q3', 'q4'].map(k => Number(data[k] || 0));
+                forecastChart.data.datasets[0].data = q;
+                forecastChart.update('none');
+                const total = q.reduce((a, b) => a + b, 0);
+                const tarif = Number(data.tarif_per_kwh || 0);
+                document.getElementById('forecastSummary').innerHTML =
+                    `Total 24 jam: <span class="text-white font-mono">${total.toFixed(2)} kWh</span>` +
+                    (tarif ? ` · ≈ <span class="text-amber-400 font-mono">Rp ${Math.round(total * tarif).toLocaleString('id-ID')}</span>` : '');
+            }
+        }
+    </script>
+</body>
+</html>

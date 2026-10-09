@@ -1,5 +1,4 @@
 *.txt
-*.csv
 *.pdf
 *.docx
 
@@ -12,5 +11,5 @@ __pycache__/
 power_meter.db
 
 # MicroSD data dumps
-*.csv
 *.dat
+*.zip

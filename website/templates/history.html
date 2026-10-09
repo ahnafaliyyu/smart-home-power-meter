@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Telemetri Energi | Smart Power Meter</title>
+    <!-- Tailwind CSS & Font Awesome -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+
+    <!-- Sidebar Navigasi (kiri di desktop, bar atas di layar kecil) -->
+    <aside class="sticky top-0 z-50 md:fixed md:inset-y-0 md:left-0 md:w-64 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950/90 backdrop-blur">
+        <div class="px-4 py-3 md:py-6 flex flex-wrap items-center justify-between gap-3 md:flex-col md:items-stretch md:justify-start md:gap-6 md:h-full">
+            <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
+                    <i class="fa-solid fa-bolt text-amber-400 text-lg"></i>
+                </div>
+                <div>
+                    <span class="font-bold text-base tracking-wide">ELEVATE 2026</span>
+                    <span class="text-xs text-slate-400 block -mt-1">Edge TinyML &amp; Smart Metrology</span>
+                </div>
+            </div>
+
+            <nav class="flex md:flex-col gap-1 text-sm font-medium">
+                <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition"><i class="fa-solid fa-gauge-high w-4 text-center"></i><span>Dasbor Real-time</span></a>
+                <a href="/history" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30"><i class="fa-solid fa-clock-rotate-left w-4 text-center"></i><span>Riwayat &amp; Analitik</span></a>
+            </nav>
+        </div>
+    </aside>
+
+    <div class="md:pl-64">
+
+    <main class="max-w-7xl mx-auto px-4 py-8 space-y-6">
+
+        <!-- Header & Filter Bar -->
+        <section class="bg-slate-800/60 p-6 rounded-2xl border border-slate-700/60 shadow-xl space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold">Riwayat & Audit Pemakaian Listrik</h1>
+                    <p class="text-sm text-slate-400">Analisis tren parameter True-RMS dan konsumsi kuota energi rumah tangga</p>
+                </div>
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-2">
+                    <button onclick="setPreset('today')" class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg transition font-medium">Hari Ini</button>
+                    <button onclick="setPreset('7days')" class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg transition font-medium">7 Hari</button>
+                    <button onclick="setPreset('30days')" class="px-3 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded-lg transition font-medium">30 Hari</button>
+                    <button onclick="downloadCSV()" class="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition font-medium flex items-center gap-1.5">
+                        <i class="fa-solid fa-file-csv"></i> Unduh CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Custom Date Filter Form -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-700/50">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Dari Tanggal</label>
+                    <input type="date" id="startDate" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">Sampai Tanggal</label>
+                    <input type="date" id="endDate" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-amber-400">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="loadHistoryData()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold py-2 rounded-lg text-sm transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-filter"></i> Terapkan Filter
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- KPI Summary Cards -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                <span class="text-xs text-slate-400 font-medium">Total Konsumsi</span>
+                <div class="text-2xl font-bold mt-1 text-white flex items-baseline gap-1">
+                    <span id="kpiKwh">0.00</span> <span class="text-xs text-slate-400 font-normal">kWh</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Est. Biaya: <span id="kpiCost" class="text-amber-400 font-medium">Rp 0</span></span>
+            </div>
+
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                <span class="text-xs text-slate-400 font-medium">Beban Semu Puncak</span>
+                <div class="text-2xl font-bold mt-1 text-amber-400 flex items-baseline gap-1">
+                    <span id="kpiPeakVa">0</span> <span class="text-xs text-slate-400 font-normal">VA</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Batas MCB Rumah: <span id="kpiLimit">1300</span> VA</span>
+            </div>
+
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                <span class="text-xs text-slate-400 font-medium">Daya Aktif Puncak</span>
+                <div class="text-2xl font-bold mt-1 text-sky-400 flex items-baseline gap-1">
+                    <span id="kpiPeakWatt">0</span> <span class="text-xs text-slate-400 font-normal">Watt</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Peak Load Realistis</span>
+            </div>
+
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                <span class="text-xs text-slate-400 font-medium">Rata-rata Power Factor</span>
+                <div class="text-2xl font-bold mt-1 text-emerald-400 flex items-baseline gap-1">
+                    <span id="kpiPf">0.00</span>
+                </div>
+                <span class="text-[11px] text-slate-500 mt-1 block">Rata-rata saat ada beban (dalam persen)</span>
+            </div>
+        </section>
+
+        <!-- Charts Container -->
+        <section class="space-y-6">
+            <!-- Chart 1: Daya Aktif (W) vs Daya Semu (VA) -->
+            <div class="bg-slate-800/50 border border-slate-700/60 p-5 rounded-2xl shadow-lg">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-sm text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-line text-amber-400"></i> Profil Beban: Watt (Riil) vs Volt-Ampere (Semu)
+                    </h2>
+                    <span class="text-xs text-slate-500">Kapasitas MCB: <span id="chartLimit">1300</span> VA</span>
+                </div>
+                <div class="h-72 w-full">
+                    <canvas id="chartPower"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Tegangan & Kuat Arus -->
+            <div class="bg-slate-800/50 border border-slate-700/60 p-5 rounded-2xl shadow-lg">
+                <h2 class="font-bold text-sm text-slate-200 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-wave-square text-sky-400"></i> Kualitas Kelistrikan: Tegangan (V) & Kuat Arus (A)
+                </h2>
+                <div class="h-64 w-full">
+                    <canvas id="chartVI"></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Chart 3: Saldo Token & Runway -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-5 rounded-2xl shadow-lg">
+                    <h2 class="font-bold text-sm text-slate-200 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-wallet text-emerald-400"></i> Saldo Token (kWh) & Runway (Jam)
+                    </h2>
+                    <div class="h-64 w-full">
+                        <canvas id="chartSaldo"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 4: Prediksi TinyML -->
+                <div class="bg-slate-800/50 border border-slate-700/60 p-5 rounded-2xl shadow-lg">
+                    <h2 class="font-bold text-sm text-slate-200 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-brain text-purple-400"></i> Prediksi TinyML per Jendela 6 Jam (kWh)
+                    </h2>
+                    <div class="h-64 w-full">
+                        <canvas id="chartForecast"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Historical Data Table (Preview 50 Records Terbaru) -->
+        <section class="bg-slate-800/50 border border-slate-700/60 rounded-2xl overflow-hidden shadow-lg">
+            <div class="p-4 border-b border-slate-700/60 flex items-center justify-between">
+                <h2 class="font-bold text-sm text-slate-200">Log Sampel Telemetri Terbaru</h2>
+                <span id="recordCount" class="text-xs text-slate-400">Memuat data...</span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-300">
+                    <thead class="bg-slate-900/60 text-slate-400 border-b border-slate-700/60">
+                        <tr>
+                            <th class="py-3 px-4">Waktu</th>
+                            <th class="py-3 px-4">Tegangan (V)</th>
+                            <th class="py-3 px-4">Arus (A)</th>
+                            <th class="py-3 px-4">Daya Riil (W)</th>
+                            <th class="py-3 px-4">Daya Semu (VA)</th>
+                            <th class="py-3 px-4">Power Factor (%)</th>
+                            <th class="py-3 px-4">Sisa Saldo (kWh)</th>
+                            <th class="py-3 px-4">Runway</th>
+                            <th class="py-3 px-4">Prediksi 24 Jam</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-800/60 font-mono">
+                        <!-- Diisi secara dinamis oleh JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+    </div>
+
+    <!-- JavaScript Logic & Chart.js Handling -->
+    <script>
+        let powerChart = null;
+        let viChart = null;
+        let saldoChart = null;
+        let forecastHistChart = null;
+        let contractLimit = 1300; // statis
+
+        // Inisialisasi tanggal default (Hari ini)
+        window.addEventListener('DOMContentLoaded', () => {
+            setPreset('today');
+        });
+
+        function setPreset(preset) {
+            const today = new Date();
+            const pad = (n) => String(n).padStart(2, '0');
+            const formatDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+            document.getElementById('endDate').value = formatDate(today);
+
+            if (preset === 'today') {
+                document.getElementById('startDate').value = formatDate(today);
+            } else if (preset === '7days') {
+                const past = new Date();
+                past.setDate(today.getDate() - 7);
+                document.getElementById('startDate').value = formatDate(past);
+            } else if (preset === '30days') {
+                const past = new Date();
+                past.setDate(today.getDate() - 30);
+                document.getElementById('startDate').value = formatDate(past);
+            }
+            loadHistoryData();
+        }
+
+        async function loadHistoryData() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            try {
+                const response = await fetch(`/api/history?start_date=${start}&end_date=${end}&limit=1000`);
+                const res = await response.json();
+
+                if (res.status === 'success') {
+                    updateSummary(res.summary);
+                    renderCharts(res.series);
+                    renderTable(res.table_data, res.summary.total_records);
+                }
+            } catch (err) {
+                console.error("Gagal memuat data histori:", err);
+            }
+        }
+
+        function updateSummary(summary) {
+            document.getElementById('kpiKwh').innerText = summary.total_kwh.toFixed(2);
+            document.getElementById('kpiCost').innerText = "Rp " + summary.estimated_cost_rp.toLocaleString('id-ID');
+            document.getElementById('kpiPeakVa').innerText = summary.peak_va;
+            document.getElementById('kpiPeakWatt').innerText = summary.peak_watt;
+            document.getElementById('kpiPf').innerText = summary.avg_pf.toFixed(1) + ' %';
+            if (summary.kontrak_daya_va) {
+                const lim = Math.round(summary.kontrak_daya_va);
+                contractLimit = lim;
+                document.getElementById('kpiLimit').innerText = lim;
+                document.getElementById('chartLimit').innerText = lim;
+            }
+        }
+
+        function renderCharts(series) {
+            const multiDay = series.length > 0 && series[0].timestamp.slice(0, 10) !== series[series.length - 1].timestamp.slice(0, 10);
+            const labels = series.map(d => multiDay ? d.timestamp.slice(5, 16) : (d.timestamp.split(' ')[1] || d.timestamp));
+            const watts = series.map(d => d.power);
+            const apparents = series.map(d => d.apparent_power);
+            const voltages = series.map(d => d.voltage);
+            const currents = series.map(d => d.current);
+
+            // 1. Render Power Chart (Watt vs VA)
+            if (powerChart) powerChart.destroy();
+            const ctxPower = document.getElementById('chartPower').getContext('2d');
+            powerChart = new Chart(ctxPower, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Daya Semu (VA)',
+                            data: apparents,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Daya Aktif (Watt)',
+                            data: watts,
+                            borderColor: '#38bdf8',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            pointRadius: 0
+                        },
+                        {
+                            label: `Batas Kontrak (${contractLimit} VA)`,
+                            data: labels.map(() => contractLimit),
+                            borderColor: '#f43f5e',
+                            borderDash: [6, 4],
+                            borderWidth: 1.5,
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'Beban (W / VA)', color: '#94a3b8' } }
+                    },
+                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                }
+            });
+
+            // 2. Render V & I Chart
+            if (viChart) viChart.destroy();
+            const ctxVI = document.getElementById('chartVI').getContext('2d');
+            viChart = new Chart(ctxVI, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Tegangan (V)',
+                            data: voltages,
+                            borderColor: '#10b981',
+                            borderWidth: 1.5,
+                            yAxisID: 'yVoltage',
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Arus (A)',
+                            data: currents,
+                            borderColor: '#a855f7',
+                            borderWidth: 1.5,
+                            yAxisID: 'yCurrent',
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' } },
+                        yVoltage: {
+                            type: 'linear',
+                            position: 'left',
+                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
+                            ticks: { color: '#10b981' },
+                            title: { display: true, text: 'Volt (V)', color: '#10b981' },
+                            suggestedMin: 180,
+                            suggestedMax: 240
+                        },
+                        yCurrent: {
+                            type: 'linear',
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            ticks: { color: '#a855f7' },
+                            title: { display: true, text: 'Ampere (A)', color: '#a855f7' }
+                        }
+                    },
+                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                }
+            });
+
+            // 3. Saldo token (kWh) & runway (jam). Runway 999 (tanpa beban) dipotong ke 99 seperti OLED.
+            if (saldoChart) saldoChart.destroy();
+            saldoChart = new Chart(document.getElementById('chartSaldo').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Saldo (kWh)',
+                            data: series.map(d => d.saldo_kwh),
+                            borderColor: '#34d399',
+                            backgroundColor: 'rgba(52, 211, 153, 0.08)',
+                            fill: true,
+                            borderWidth: 2,
+                            tension: 0.2,
+                            pointRadius: 0,
+                            yAxisID: 'ySaldo'
+                        },
+                        {
+                            label: 'Runway (Jam)',
+                            data: series.map(d => Math.min(99, d.runway_hours || 0)),
+                            borderColor: '#f59e0b',
+                            borderWidth: 1.5,
+                            tension: 0.2,
+                            pointRadius: 0,
+                            yAxisID: 'yRunway'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', maxTicksLimit: 8 } },
+                        ySaldo: { type: 'linear', position: 'left', beginAtZero: true, grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#34d399' }, title: { display: true, text: 'kWh', color: '#34d399' } },
+                        yRunway: { type: 'linear', position: 'right', beginAtZero: true, max: 100, grid: { drawOnChartArea: false }, ticks: { color: '#f59e0b' }, title: { display: true, text: 'Jam', color: '#f59e0b' } }
+                    },
+                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                }
+            });
+
+            // 4. Prediksi TinyML: q1..q4 persis seperti dikirim ESP32
+            if (forecastHistChart) forecastHistChart.destroy();
+            const qStyle = [
+                ['q1', 'Q1 (0-6 jam)', '#a855f7'],
+                ['q2', 'Q2 (6-12 jam)', '#818cf8'],
+                ['q3', 'Q3 (12-18 jam)', '#38bdf8'],
+                ['q4', 'Q4 (18-24 jam)', '#34d399']
+            ];
+            forecastHistChart = new Chart(document.getElementById('chartForecast').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: qStyle.map(([k, name, color]) => ({
+                        label: name,
+                        data: series.map(d => d[k]),
+                        borderColor: color,
+                        borderWidth: 1.5,
+                        tension: 0.2,
+                        pointRadius: 0
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8', maxTicksLimit: 8 } },
+                        y: { beginAtZero: true, grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' }, title: { display: true, text: 'kWh / 6 jam', color: '#94a3b8' } }
+                    },
+                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                }
+            });
+        }
+
+        function renderTable(tableData, totalRecords) {
+            document.getElementById('recordCount').innerText = `Total ${totalRecords} data ditemukan`;
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            if (tableData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-6 text-slate-500 font-sans">Tidak ada data riwayat pada rentang tanggal ini.</td></tr>`;
+                return;
+            }
+
+            tableData.forEach(row => {
+                const rw = Number(row.runway_hours || 0);
+                const fc = ['q1', 'q2', 'q3', 'q4'].reduce((a, k) => a + Number(row[k] || 0), 0);
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4 text-slate-300 font-sans">${row.timestamp}</td>
+                    <td class="py-2.5 px-4 text-emerald-400">${parseFloat(row.voltage).toFixed(1)} V</td>
+                    <td class="py-2.5 px-4 text-purple-400">${parseFloat(row.current).toFixed(3)} A</td>
+                    <td class="py-2.5 px-4 text-sky-400 font-semibold">${parseFloat(row.power).toFixed(1)} W</td>
+                    <td class="py-2.5 px-4 text-amber-400 font-semibold">${parseFloat(row.apparent_power).toFixed(1)} VA</td>
+                    <td class="py-2.5 px-4 text-slate-300">${parseFloat(row.pf).toFixed(1)} %</td>
+                    <td class="py-2.5 px-4 text-slate-400">${parseFloat(row.saldo_kwh).toFixed(2)} kWh</td>
+                    <td class="py-2.5 px-4 text-amber-300">${rw >= 99 ? '>99' : rw.toFixed(1)} jam</td>
+                    <td class="py-2.5 px-4 text-purple-400">${fc.toFixed(2)} kWh</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function downloadCSV() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+            window.location.href = `/api/history/export?start_date=${start}&end_date=${end}`;
+        }
+    </script>
+</body>
+</html>

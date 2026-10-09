@@ -12,6 +12,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <Keypad.h>
+#include <time.h>
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
@@ -49,6 +50,11 @@ const char* WIFI_PASSWORD = "ridhosetiawanskom24";
 const char* MQTT_BROKER = "broker.hivemq.com";
 const int MQTT_PORT = 1883;
 const char* MQTT_TOPIC_PUB = "elevate2026/powermeter/telemetry";
+
+// Konfigurasi NTP Time (WIB = GMT+7)
+const char* NTP_SERVER = "pool.ntp.org";
+const long GMT_OFFSET_SEC = 7 * 3600;
+const int DAYLIGHT_OFFSET_SEC = 0;
 
 String mqttClientId = "ESP32_ELEVATE_" + String((uint32_t)ESP.getEfuseMac(), HEX);
 WiFiClient espClient;
@@ -145,6 +151,9 @@ void setup() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  // Inisialisasi Sinkronisasi Jam NTP
+  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
 
   mqttClient.setServer(MQTT_BROKER, MQTT_PORT);
   mqttClient.setBufferSize(512);
@@ -270,7 +279,6 @@ void initSDCard() {
   sdCardAvailable = true;
   Serial.println(F("[SD] MicroSD Card terpasang dan siap digunakan!"));
 
-  // Baca saldo yang ada di berkas /saldo.txt
   if (SD.exists(FILE_SALDO)) {
     File f = SD.open(FILE_SALDO, FILE_READ);
     if (f) {
@@ -284,7 +292,6 @@ void initSDCard() {
       f.close();
     }
   } else {
-    // Buat file awal jika belum ada
     saveSaldoToSD(saldo_token_kwh);
   }
 
@@ -307,10 +314,8 @@ void saveSaldoToSD(float saldo) {
     return;
   }
 
-  // Buka langsung berkas dengan mode "w" agar ditimpa bersih
   File f = SD.open(FILE_SALDO, "w");
   if (!f) {
-    // Upaya alternatif mode penulisan standar
     f = SD.open(FILE_SALDO, FILE_WRITE);
   }
 
@@ -333,7 +338,6 @@ void wipeAllSDCardFiles() {
 
   Serial.println(F("[SD] Menghapus seluruh berkas di MicroSD..."));
 
-  // Hapus berkas sistem secara eksplisit
   if (SD.exists(FILE_SALDO)) SD.remove(FILE_SALDO);
   if (SD.exists(FILE_LOG)) SD.remove(FILE_LOG);
   if (SD.exists(FILE_BUFFER)) SD.remove(FILE_BUFFER);
@@ -344,7 +348,6 @@ void wipeAllSDCardFiles() {
     energy_buffer_15m[i] = 0.0f;
   }
 
-  // Tulis berkas baru bernilai 0.0000
   File f = SD.open(FILE_SALDO, "w");
   if (!f) f = SD.open(FILE_SALDO, FILE_WRITE);
   if (f) {
@@ -354,7 +357,6 @@ void wipeAllSDCardFiles() {
     f.close();
   }
 
-  // Buat kembali template header CSV log
   File logFile = SD.open(FILE_LOG, "w");
   if (!logFile) logFile = SD.open(FILE_LOG, FILE_WRITE);
   if (logFile) {
@@ -416,7 +418,6 @@ void handleKeypad() {
   char key = keypad.getKey();
   if (!key) return;
 
-  // 1. Konfirmasi Format SD Card (ABC -> D)
   if (waiting_format_confirm) {
     if (key == 'D') {
       wipeAllSDCardFiles();
@@ -433,7 +434,6 @@ void handleKeypad() {
     return;
   }
 
-  // 2. Sequence Huruf
   if (key == 'A') {
     is_input_mode = true;
     input_kwh_str = "";
@@ -458,7 +458,6 @@ void handleKeypad() {
     return;
   }
 
-  // 3. Reset Saldo (Urutan AB -> D)
   if (key == 'D') {
     if (key_sequence == "AB") {
       saldo_token_kwh = 0.0f;
@@ -474,7 +473,6 @@ void handleKeypad() {
     return;
   }
 
-  // 4. Input Angka 0 - 9
   if (key >= '0' && key <= '9') {
     is_input_mode = true;
     key_sequence = "";
@@ -485,7 +483,6 @@ void handleKeypad() {
     return;
   }
 
-  // 5. Backspace (*)
   if (key == '*') {
     if (input_kwh_str.length() > 0) {
       input_kwh_str.remove(input_kwh_str.length() - 1);
@@ -502,7 +499,6 @@ void handleKeypad() {
     return;
   }
 
-  // 6. Enter (#) Konfirmasi Top-Up
   if (key == '#') {
     if (input_kwh_str.length() > 0) {
       float added_kwh = input_kwh_str.toFloat();
@@ -521,7 +517,6 @@ void handleKeypad() {
   }
 }
 
-// ================= BANNER POPUP =================
 void showPopup(const String& l1, const String& l2, unsigned long duration) {
   popup_line1 = l1;
   popup_line2 = l2;
@@ -537,7 +532,6 @@ void showPopup(const String& l1, const String& l2, unsigned long duration) {
   display.display();
 }
 
-// ================= LAYAR PENUH INPUT =================
 void renderInputScreen() {
   if (millis() < popup_end_time) return;
 
@@ -596,7 +590,6 @@ void renderInputScreen() {
   }
 }
 
-// ================= DASHBOARD (DENGAN ARUS AMPERE, TANPA Q1-Q4) =================
 void updateOLED() {
   if (millis() < popup_end_time) return;
 
@@ -604,23 +597,18 @@ void updateOLED() {
   display.setTextColor(WHITE);
   display.setTextSize(1);
 
-  // Baris 1: Tegangan (V), Daya Aktif (W), dan Daya Semu (VA)
   display.setCursor(0, 0);
   display.printf("V:%3.0f P:%3.0fW S:%3.0fVA", v_rms, p_active_stable, p_apparent_stable);
 
-  // Baris 2: Kuat Arus Efektif (Ampere)
   display.setCursor(0, 12);
   display.printf("Arus  : %5.3f A", i_rms_stable);
 
-  // Baris 3: Saldo Token Listrik
   display.setCursor(0, 24);
   display.printf("Saldo : %5.2f kWh", saldo_token_kwh);
 
-  // Baris 4: Estimasi Sisa Waktu (Runway)
   display.setCursor(0, 36);
   display.printf("Sisa  : %5.1f Jam", (token_runway_hours > 99.0f) ? 99.9f : token_runway_hours);
 
-  // Baris 5: Garis Pembatas & Status
   display.drawLine(0, 48, 128, 48, WHITE);
   display.setCursor(0, 52);
   display.print(sdCardAvailable ? "[SD] Ketik Angka/A" : "!SD Ketik Angka/A");
@@ -628,7 +616,6 @@ void updateOLED() {
   display.display();
 }
 
-// ================= SAMPLING METROLOGI =================
 void calculateACMetricsPresisi() {
   unsigned long start_time = millis();
   int n_samples = 0;
@@ -722,21 +709,33 @@ void warmupTinyMLWithCurrentLoad() {
   tinyml_predict(features, predicted_q);
 }
 
+// ================= PERBAIKAN FITUR TINYML SINKRON DENGAN MODEL BARU =================
 void build_features(float* features) {
+  // Fitur 0 - 3: 4 lag interval 15 menit (1 jam terakhir)
   features[0] = energy_buffer_15m[buffer_idx];
   features[1] = energy_buffer_15m[(buffer_idx - 1 + BUFFER_SIZE) % BUFFER_SIZE];
   features[2] = energy_buffer_15m[(buffer_idx - 2 + BUFFER_SIZE) % BUFFER_SIZE];
   features[3] = energy_buffer_15m[(buffer_idx - 3 + BUFFER_SIZE) % BUFFER_SIZE];
 
-  for (int b = 0; b < 4; b++) {
-    float sum_b = 0.0f;
-    int start_offset = (b * 24) + 1;
-    for (int k = 0; k < 24; k++) {
-      int idx = (buffer_idx - (start_offset + k) + (BUFFER_SIZE * 2)) % BUFFER_SIZE;
-      sum_b += energy_buffer_15m[idx];
-    }
-    features[4 + b] = sum_b / 24.0f;
+  // Fitur 4: Rata-rata 6 jam terakhir (24 slot sebelumnya)
+  float sum_6h = 0.0f;
+  for (int k = 0; k < 24; k++) {
+    int idx = (buffer_idx - 1 - k + BUFFER_SIZE * 2) % BUFFER_SIZE;
+    sum_6h += energy_buffer_15m[idx];
   }
+  features[4] = sum_6h / 24.0f;
+
+  // Fitur 5: Konsumsi pada jam yang sama kemarin (lag 24 jam = 96 slot lalu)
+  features[5] = energy_buffer_15m[(buffer_idx + 1) % BUFFER_SIZE];
+
+  // Fitur 6 - 7: Siklus waktu sirkadian (jam desimal 0.00 - 23.75)
+  struct tm timeinfo;
+  float hour_dec = 12.0f;  // Default siang hari jika jam NTP belum sinkron
+  if (getLocalTime(&timeinfo)) {
+    hour_dec = timeinfo.tm_hour + (timeinfo.tm_min / 60.0f);
+  }
+  features[6] = sin(2.0f * PI * hour_dec / 24.0f);
+  features[7] = cos(2.0f * PI * hour_dec / 24.0f);
 }
 
 // ================= JARINGAN NON-BLOCKING =================
