@@ -1,0 +1,16 @@
+*.txt
+*.csv
+*.pdf
+*.docx
+
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv/
+power_meter.db
+
+# MicroSD data dumps
+*.csv
+*.dat
