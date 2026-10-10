@@ -305,22 +305,52 @@ void initSDCard() {
   }
 }
 
+// ================= AUTO-RECOVERY MICROSD =================
+bool recoverSDCard() {
+  Serial.println(F("[SD] Terjadi gangguan, mencoba inisialisasi ulang MicroSD..."));
+  SD.end();
+  delay(100);
+  
+  if (SD.begin(SD_CS_PIN, SPI, 4000000)) {
+    if (SD.cardType() != CARD_NONE) {
+      sdCardAvailable = true;
+      Serial.println(F("[SD] MicroSD berhasil dipulihkan!"));
+      return true;
+    }
+  }
+  
+  sdCardAvailable = false;
+  Serial.println(F("[SD] Gagal memulihkan MicroSD!"));
+  return false;
+}
+
+// ================= PERBAIKAN PENYIMPANAN SALDO =================
 void saveSaldoToSD(float saldo) {
   saldo_token_kwh = saldo;
   last_saved_saldo = saldo;
 
+  // 1. Cek kesiapan SD Card
   if (!sdCardAvailable) {
-    Serial.println(F("[SD] Gagal simpan: SD Card tidak aktif!"));
-    return;
+    if (!recoverSDCard()) return;
   }
 
-  File f = SD.open(FILE_SALDO, "w");
+  // 2. Hapus file lama terlebih dahulu agar pointer cluster FAT32 bersih
+  if (SD.exists(FILE_SALDO)) {
+    SD.remove(FILE_SALDO);
+  }
+
+  // 3. Buka dengan mode FILE_WRITE murni
+  File f = SD.open(FILE_SALDO, FILE_WRITE);
+
+  // 4. Jika masih gagal terbuka, lakukan recovery 1 kali lalu coba buka ulang
   if (!f) {
-    f = SD.open(FILE_SALDO, FILE_WRITE);
+    if (recoverSDCard()) {
+      f = SD.open(FILE_SALDO, FILE_WRITE);
+    }
   }
 
+  // 5. Tulis data
   if (f) {
-    f.seek(0);
     f.printf("%.4f\n", saldo);
     f.flush();
     f.close();
@@ -400,8 +430,17 @@ bool loadBufferFromSD() {
 }
 
 void logTelemetryToSD() {
-  if (!sdCardAvailable) return;
+  if (!sdCardAvailable) {
+    if (!recoverSDCard()) return;
+  }
+
   File logFile = SD.open(FILE_LOG, FILE_APPEND);
+  if (!logFile) {
+    if (recoverSDCard()) {
+      logFile = SD.open(FILE_LOG, FILE_APPEND);
+    }
+  }
+
   if (logFile) {
     logFile.printf("%lu,%.2f,%.3f,%.2f,%.2f,%.2f,%.4f,%.2f,%.3f,%.3f,%.3f,%.3f\n",
                    millis() / 1000,
@@ -607,7 +646,7 @@ void updateOLED() {
   display.printf("Saldo : %5.2f kWh", saldo_token_kwh);
 
   display.setCursor(0, 36);
-  display.printf("Sisa  : %5.1f Jam", (token_runway_hours > 99.0f) ? 99.9f : token_runway_hours);
+  display.printf("Sisa  : %5.2f Jam", token_runway_hours);
 
   display.drawLine(0, 48, 128, 48, WHITE);
   display.setCursor(0, 52);
