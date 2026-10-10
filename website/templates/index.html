@@ -411,60 +411,31 @@
 
         const CONTRACT_VA = {{ kontrak_daya_va|int }}; // statis dari Jinja2
 
-        window.addEventListener('DOMContentLoaded', async () => {
+        window.addEventListener('DOMContentLoaded', () => {
             initCharts();
-            await loadInitialChartHistory();
             connectWebSocket();
         });
 
-        // Ambil data telemetri terakhir dari database saat halaman dibuka agar grafik tidak kosong saat ESP32 baru disambungkan
-        async function loadInitialChartHistory() {
-            try {
-                const res = await fetch('/api/history?limit=30');
-                const json = await res.json();
-                if (json.status === 'success' && json.series && json.series.length > 0) {
-                    const recent = json.series.slice(-30);
-                    liveLabels = recent.map(d => (d.timestamp || '').split(' ')[1] || d.timestamp);
-                    liveWatts = recent.map(d => Number(d.power || 0));
-                    liveApparents = recent.map(d => Number(d.apparent_power || 0));
-                    updateLiveChartUI();
-                }
-            } catch (e) {
-                console.warn("Gagal memuat histori awal live chart:", e);
-            }
-        }
-
-        // Fungsi pembaruan grafik terpadu dan aman dari TypeError null/undefined
-        function updateLiveChartUI() {
-            if (!liveChart || !liveLabels.length) return;
+        function fitLiveYAxis() {
             const all = liveWatts.concat(liveApparents);
-            let yaxisOpt = undefined;
-            if (all.length > 0) {
-                const lo = Math.min(...all), hi = Math.max(...all);
-                const span = Math.max(hi - lo, 4);
-                const pad = span * 0.3;
-                const minY = Math.max(0, Math.floor(lo - pad));
-                const maxY = Math.ceil(hi + pad);
-                yaxisOpt = {
+            if (!all.length || !liveChart) return;
+            const lo = Math.min(...all), hi = Math.max(...all);
+            const span = Math.max(hi - lo, 4);
+            const pad = span * 0.3;
+            const minY = Math.max(0, Math.floor(lo - pad));
+            const maxY = Math.ceil(hi + pad);
+
+            liveChart.updateOptions({
+                yaxis: {
                     min: minY,
                     max: maxY,
                     labels: {
                         style: { colors: '#9E9E9E', fontSize: '11px', fontFamily: 'Inter, sans-serif' },
-                        formatter: (val) => (val != null && !isNaN(val)) ? Number(val).toFixed(0) : '0'
+                        formatter: (val) => val.toFixed(0)
                     },
                     title: { text: 'Beban (W / VA)', style: { color: '#9E9E9E', fontSize: '11px', fontFamily: 'Inter, sans-serif' } }
-                };
-            }
-
-            liveChart.updateOptions({
-                xaxis: { categories: [...liveLabels] },
-                ...(yaxisOpt ? { yaxis: yaxisOpt } : {})
+                }
             }, false, false);
-
-            liveChart.updateSeries([
-                { name: 'Daya Semu (VA)', data: [...liveApparents] },
-                { name: 'Daya Aktif (W)', data: [...liveWatts] }
-            ], false);
         }
 
         function initCharts() {
@@ -660,90 +631,128 @@
         }
 
         function updateDashboardUI(data) {
-            // Update Angka Metrologi
-            const runway = Number(data.runway_hours || 0);
-            document.getElementById('valVoltage').innerText = Number(data.voltage || 0).toFixed(1);
-            document.getElementById('valCurrent').innerText = Number(data.current || 0).toFixed(3);
-            document.getElementById('valPower').innerText = Number(data.power || 0).toFixed(1);
-            document.getElementById('valApparent').innerText = Number(data.apparent_power || 0).toFixed(1);
-            document.getElementById('valSaldo').innerText = Number(data.saldo_kwh || 0).toFixed(2);
-            document.getElementById('valRunway').innerText = runway.toFixed(1);
-            document.getElementById('valPf').innerText = Number(data.pf || 0).toFixed(1);
+    if (!data) return;
 
-            // Kapasitas MCB (%) terhadap kontrak statis
-            const apparent = Number(data.apparent_power || 0);
-            const loadPct = Math.min(100, Math.round((apparent / CONTRACT_VA) * 100));
-            const bar = document.getElementById('barLoadPct');
+    // 1. UPDATE KARTU METROLOGI & DSS
+    try {
+        if (document.getElementById('valVoltage')) document.getElementById('valVoltage').innerText = Number(data.voltage || 0).toFixed(1);
+        if (document.getElementById('valCurrent')) document.getElementById('valCurrent').innerText = Number(data.current || 0).toFixed(3);
+        if (document.getElementById('valPower')) document.getElementById('valPower').innerText = Number(data.power || 0).toFixed(1);
+        if (document.getElementById('valApparent')) document.getElementById('valApparent').innerText = Number(data.apparent_power || 0).toFixed(1);
+        if (document.getElementById('valSaldo')) document.getElementById('valSaldo').innerText = Number(data.saldo_kwh || 0).toFixed(2);
+        if (document.getElementById('valRunway')) document.getElementById('valRunway').innerText = Number(data.runway_hours || 0).toFixed(1);
+        if (document.getElementById('valPf')) document.getElementById('valPf').innerText = Number(data.pf || 0).toFixed(1);
+
+        // Batas MCB
+        const contractLimit = Number(data.kontrak_daya_va || 1300);
+        const apparent = Number(data.apparent_power || 0);
+        const loadPct = Math.min(100, Math.round((apparent / contractLimit) * 100));
+        const bar = document.getElementById('barLoadPct');
+        if (bar) {
             bar.style.width = loadPct + '%';
-            
-            if (loadPct >= 85) {
-                bar.className = "h-full rounded-full transition-all duration-300 bg-rose-500";
-            } else if (loadPct >= 70) {
-                bar.className = "h-full rounded-full transition-all duration-300 bg-amber-400";
-            } else {
-                bar.className = "h-full rounded-full transition-all duration-300 bg-[#3B82F6]";
-            }
-            document.getElementById('textLoadPct').innerText = `${loadPct}% dari ${CONTRACT_VA} VA`;
+            bar.className = loadPct >= 85 ? "h-full rounded-full transition-all duration-300 bg-rose-500" :
+                           (loadPct >= 70 ? "h-full rounded-full transition-all duration-300 bg-amber-400" : "h-full rounded-full transition-all duration-300 bg-[#1d74f5]");
+        }
+        if (document.getElementById('textLoadPct')) {
+            document.getElementById('textLoadPct').innerText = `${loadPct}% dari batas ${contractLimit} VA`;
+        }
 
-            // Active Alerts / Banner Rekomendasi DSS Bergaya KaaIoT dengan Boxicons
-            if (data.dss) {
-                const dss = data.dss;
-                document.getElementById('dssBadge').innerText = dss.status;
-                document.getElementById('dssTitle').innerText = dss.title;
-                document.getElementById('dssMessage').innerText = dss.message;
-                document.getElementById('lastUpdated').innerText = (data.timestamp || '').split(' ')[1] || '—';
-
-                const banner = document.getElementById('dssBanner');
-                const badge = document.getElementById('dssBadge');
-                const iconWrapper = document.getElementById('dssIconWrapper');
-                const icon = document.getElementById('dssIcon');
-
-                if (dss.status === 'DANGER') {
-                    if (badge) badge.className = "px-2.5 py-0.5 rounded-full border border-rose-500/60 text-rose-400 bg-rose-500/10 text-[11px] font-semibold uppercase";
-                    if (iconWrapper) iconWrapper.className = "w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center flex-shrink-0 mt-0.5";
-                    if (icon) icon.className = "bx bxs-error-alt text-xl";
-                } else if (dss.status === 'WARNING') {
-                    if (badge) badge.className = "px-2.5 py-0.5 rounded-full border border-amber-500/60 text-amber-400 bg-amber-500/10 text-[11px] font-semibold uppercase";
-                    if (iconWrapper) iconWrapper.className = "w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5";
-                    if (icon) icon.className = "bx bxs-bell-ring text-xl";
-                } else if (dss.status === 'INFO') {
-                    if (badge) badge.className = "px-2.5 py-0.5 rounded-full border border-sky-500/60 text-sky-400 bg-sky-500/10 text-[11px] font-semibold uppercase";
-                    if (iconWrapper) iconWrapper.className = "w-10 h-10 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center flex-shrink-0 mt-0.5";
-                    if (icon) icon.className = "bx bxs-info-circle text-xl";
-                } else {
-                    if (badge) badge.className = "px-2.5 py-0.5 rounded-full border border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[11px] font-semibold uppercase";
-                    if (iconWrapper) iconWrapper.className = "w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5";
-                    if (icon) icon.className = "bx bxs-shield-check text-xl";
-                }
-            }
-
-            // Update Live Line Chart (data segar dari ESP32)
-            const fresh = data.device_ready !== false && (data.age_s === undefined || Number(data.age_s) < 15);
-            if (fresh) {
-                const timeLabel = (data.timestamp || '').split(' ')[1] || new Date().toLocaleTimeString();
-                if (liveLabels.length >= MAX_POINTS) {
-                    liveLabels.shift();
-                    liveWatts.shift();
-                    liveApparents.shift();
-                }
-                liveLabels.push(timeLabel);
-                liveWatts.push(Number(data.power || 0));
-                liveApparents.push(Number(data.apparent_power || 0));
-
-                updateLiveChartUI();
-            }
-
-            // TinyML Forecast: q1..q4 (Bar Chart)
-            if (forecastChart) {
-                const q = ['q1', 'q2', 'q3', 'q4'].map(k => Number(data[k] || 0));
-                forecastChart.updateSeries([{ name: 'Proyeksi Energi', data: q }], false);
-                const total = q.reduce((a, b) => a + b, 0);
-                const tarif = Number(data.tarif_per_kwh || 0);
-                document.getElementById('forecastSummary').innerHTML =
-                    `Total proyeksi 24 jam: <strong class="text-[#E0E0E0] font-mono font-bold">${total.toFixed(2)} kWh</strong>` +
-                    (tarif ? ` · perkiraan <strong class="text-amber-400 font-mono font-bold">Rp ${Math.round(total * tarif).toLocaleString('id-ID')}</strong>` : '');
+        // DSS Banner
+        if (data.dss && document.getElementById('dssBadge')) {
+            document.getElementById('dssBadge').innerText = data.dss.status;
+            document.getElementById('dssTitle').innerText = data.dss.title;
+            document.getElementById('dssMessage').innerText = data.dss.message;
+            if (document.getElementById('lastUpdated')) {
+                document.getElementById('lastUpdated').innerText = (data.timestamp || '').split(' ')[1] || new Date().toLocaleTimeString();
             }
         }
+    } catch (errCards) {
+        console.error("[UI] Error updating cards:", errCards);
+    }
+
+    // 2. UPDATE LIVE CHART (REAL-TIME WATT VS VA)
+    try {
+        const timeLabel = (data.timestamp || '').split(' ')[1] || new Date().toLocaleTimeString();
+        const pActive = Number(data.power || 0);
+        const pApparent = Number(data.apparent_power || 0);
+
+        if (liveLabels.length >= (typeof MAX_POINTS !== 'undefined' ? MAX_POINTS : 30)) {
+            liveLabels.shift();
+            liveWatts.shift();
+            liveApparents.shift();
+        }
+        liveLabels.push(timeLabel);
+        liveWatts.push(pActive);
+        liveApparents.push(pApparent);
+
+        // A. Jika Menggunakan Chart.js
+        if (typeof Chart !== 'undefined' && liveChart instanceof Chart) {
+            liveChart.update('none');
+        }
+        // B. Jika Menggunakan ApexCharts (Perbarui Atomik agar tidak race-condition)
+        else if (typeof ApexCharts !== 'undefined' && liveChart) {
+            liveChart.updateOptions({
+                xaxis: { categories: [...liveLabels] },
+                series: [
+                    { name: 'Daya Semu (VA)', data: [...liveApparents] },
+                    { name: 'Daya Aktif (W)', data: [...liveWatts] }
+                ]
+            }, false, false);
+            if (typeof fitLiveYAxis === 'function') fitLiveYAxis();
+        }
+    } catch (errLive) {
+        console.error("[UI] Error updating Live Chart:", errLive);
+    }
+
+    // 3. UPDATE TINYML FORECAST CHART (Q1 - Q4)
+    try {
+        // Ambil data Q dari berbagai kemungkinan key JSON
+        const q1 = Number(data.q1 ?? data.Q1 ?? 0);
+        const q2 = Number(data.q2 ?? data.Q2 ?? 0);
+        const q3 = Number(data.q3 ?? data.Q3 ?? 0);
+        const q4 = Number(data.q4 ?? data.Q4 ?? 0);
+        const qData = [q1, q2, q3, q4];
+
+        // A. Jika Menggunakan Chart.js
+        if (typeof Chart !== 'undefined' && forecastChart instanceof Chart) {
+            forecastChart.data.datasets[0].data = qData;
+            
+            // Set sumbu Y dinamis agar batang selalu terlihat
+            const maxVal = Math.max(...qData);
+            if (forecastChart.options.scales && forecastChart.options.scales.y) {
+                forecastChart.options.scales.y.suggestedMax = maxVal > 0 ? maxVal * 1.25 : 0.2;
+            }
+            forecastChart.update('none');
+        }
+        // B. Jika Menggunakan ApexCharts
+        else if (typeof ApexCharts !== 'undefined' && forecastChart) {
+            const maxVal = Math.max(...qData);
+            forecastChart.updateOptions({
+                yaxis: {
+                    min: 0,
+                    max: maxVal > 0 ? Number((maxVal * 1.25).toFixed(2)) : 0.2,
+                    forceNiceScale: true
+                }
+            }, false, false);
+            forecastChart.updateSeries([{ name: 'Proyeksi Energi', data: qData }], false);
+        }
+
+        // Update Keterangan Teks Ringkasan di Bawah Grafik
+        const summaryElem = document.getElementById('forecastSummary');
+        if (summaryElem) {
+            const total = q1 + q2 + q3 + q4;
+            const tarif = Number(data.tarif_per_kwh || 1444.70);
+            if (total === 0) {
+                summaryElem.innerHTML = `<span class="text-amber-400 font-medium"><i class='bx bx-loader-alt animate-spin'></i> Mengumpulkan buffer awal TinyML...</span>`;
+            } else {
+                summaryElem.innerHTML = `Total proyeksi 24 jam: <strong class="text-white font-mono font-bold">${total.toFixed(2)} kWh</strong> (est. <strong class="text-amber-400 font-mono font-bold">Rp ${Math.round(total * tarif).toLocaleString('id-ID')}</strong>)`;
+            }
+        }
+    } catch (errForecast) {
+        console.error("[UI] Error updating Forecast Chart:", errForecast);
+    }
+}
+        
     </script>
 </body>
 </html>
