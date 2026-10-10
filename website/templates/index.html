@@ -1,210 +1,409 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dasbor Real-time Smart Power Meter IoT | ELEVATE 2026</title>
+    <title>Smart Power Meter IoT | ELEVATE 2026</title>
+    <!-- Font: Inter (Sans-Serif) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icon -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Boxicons CDN for varied professional iconography -->
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <!-- ApexCharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                        mono: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif']
+                    },
+                    colors: {
+                        dark: {
+                            base: '#121212',
+                            surface: '#1E1E1E',
+                            elevated: '#181818',
+                            border: '#2E2E2E',
+                            hover: '#262626',
+                            muted: '#9E9E9E',
+                            text: '#E0E0E0',
+                            accent: '#3B82F6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body, input, button, select, textarea {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+        .font-tabular {
+            font-feature-settings: "tnum" 1;
+            font-variant-numeric: tabular-nums;
+        }
+        .apexcharts-canvas {
+            margin: 0 auto;
+        }
+        .apexcharts-tooltip.apexcharts-theme-dark {
+            background: #1E1E1E !important;
+            border: 1px solid #2E2E2E !important;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45) !important;
+            color: #E0E0E0 !important;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, ::before, ::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen">
+<body class="bg-[#121212] text-[#E0E0E0] font-sans min-h-screen antialiased selection:bg-[#3B82F6]/30 selection:text-white">
 
-    <!-- Sidebar Navigasi (kiri di desktop, bar atas di layar kecil) -->
-    <aside class="sticky top-0 z-50 md:fixed md:inset-y-0 md:left-0 md:w-64 border-b md:border-b-0 md:border-r border-slate-800 bg-slate-950/90 backdrop-blur">
-        <div class="px-4 py-3 md:py-6 flex flex-wrap items-center justify-between gap-3 md:flex-col md:items-stretch md:justify-start md:gap-6 md:h-full">
-            <div class="flex items-center space-x-3">
-                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center">
-                    <i class="fa-solid fa-bolt text-amber-400 text-lg"></i>
+    <!-- Backdrop Overlay untuk Mobile (Di atas layer konten, di bawah drawer) -->
+    <div id="sidebarBackdrop" onclick="toggleMobileMenu()" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-40 hidden md:hidden transition-opacity duration-300"></div>
+
+    <!-- Sidebar Navigasi (Tetap di kiri: Fixed di Desktop, Slide-over di Kiri di Atas Layer pada Mobile) -->
+    <aside id="sidebarDrawer" class="fixed inset-y-0 left-0 z-50 w-64 bg-[#181818] border-r border-[#2E2E2E] transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between p-4 md:py-5">
+        
+        <div>
+            <!-- Header Sidebar (Logo + Tombol Tutup di Mobile) -->
+            <div class="flex items-center justify-between pb-4 border-b border-[#2E2E2E] md:border-b-0 md:pb-0">
+                <div class="flex items-center space-x-3">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-extrabold text-sm tracking-wider text-[#E0E0E0]">IoT</span>
+                        </div>
+                        <span class="text-[11px] text-[#9E9E9E] block truncate font-sans">Smart Power Meter</span>
+                    </div>
                 </div>
-                <div>
-                    <span class="font-bold text-base tracking-wide">ELEVATE 2026</span>
-                    <span class="text-xs text-slate-400 block -mt-1">Edge TinyML &amp; Smart Metrology</span>
-                </div>
+
+                <!-- Tombol Tutup Khusus Mobile Drawer -->
+                <button type="button" onclick="toggleMobileMenu()" class="md:hidden p-1.5 rounded-md text-[#9E9E9E] hover:text-[#E0E0E0] hover:bg-[#262626] border border-[#2E2E2E] transition" aria-label="Tutup Menu">
+                    <i class='bx bx-x text-xl'></i>
+                </button>
             </div>
 
-            <nav class="flex md:flex-col gap-1 text-sm font-medium">
-                <a href="/" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/30"><i class="fa-solid fa-gauge-high w-4 text-center"></i><span>Dasbor Real-time</span></a>
-                <a href="/history" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent transition"><i class="fa-solid fa-clock-rotate-left w-4 text-center"></i><span>Riwayat &amp; Analitik</span></a>
+            <!-- Menu Navigasi Samping -->
+            <nav class="mt-6 flex flex-col gap-1.5 text-xs md:text-sm font-medium">
+                <a href="/" onclick="if (window.innerWidth < 768) toggleMobileMenu();" class="flex items-center gap-2.5 px-3 py-2.5 rounded-md bg-[#3B82F6]/15 text-[#E0E0E0] border border-[#3B82F6]/30 font-semibold" aria-current="page">
+                    <i class='bx bx-tachometer text-base text-[#3B82F6]'></i>
+                    <span>Dasbor Real-time</span>
+                </a>
+                <a href="/history" onclick="if (window.innerWidth < 768) toggleMobileMenu();" class="flex items-center gap-2.5 px-3 py-2.5 rounded-md text-[#9E9E9E] hover:text-[#E0E0E0] hover:bg-[#262626] border border-transparent transition">
+                    <i class='bx bx-history text-base'></i>
+                    <span>Riwayat &amp; Analitik</span>
+                </a>
             </nav>
-            <!-- Status Koneksi -->
-            <div class="md:mt-auto flex items-center gap-2 bg-slate-800/60 px-3 py-1.5 rounded-full border border-slate-700/60 text-xs">
-                <span id="wsDot" class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
-                <span id="wsStatus" class="text-slate-300 font-medium">Menghubungkan...</span>
+        </div>
+
+        <!-- Status Koneksi Hardware ESP32 di Bawah Sidebar -->
+        <div class="pt-3 border-t border-[#2E2E2E] w-full">
+            <div class="flex items-center gap-2.5 bg-[#1E1E1E] px-3 py-2 rounded-md border border-[#2E2E2E] text-xs">
+                <span id="wsDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" aria-hidden="true"></span>
+                <div class="min-w-0 leading-tight">
+                    <span id="wsStatus" class="text-[#E0E0E0] font-medium block truncate text-[11px]">Menghubungkan...</span>
+                </div>
             </div>
         </div>
+
     </aside>
 
-    <div class="md:pl-64">
-
-    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
-
-        <!-- Banner DSS Rekomendasi Cerdas -->
-        <section id="dssBanner" class="p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-emerald-950/30 border-emerald-500/30">
-            <div id="dssIconWrapper" class="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 mt-0.5">
-                <i id="dssIcon" class="fa-solid fa-shield-halved text-xl"></i>
+    <!-- Top Header Khusus Mobile (Tombol Hamburger di Kiri) -->
+    <header class="sticky top-0 z-30 bg-[#181818]/95 backdrop-blur border-b border-[#2E2E2E] px-4 py-2.5 flex items-center justify-between md:hidden">
+        <div class="flex items-center gap-3">
+            <button type="button" onclick="toggleMobileMenu()" class="p-1.5 rounded-md text-[#E0E0E0] hover:bg-[#262626] border border-[#2E2E2E] transition focus:outline-none" aria-label="Buka Menu Navigasi">
+                <i class='bx bx-menu text-2xl'></i>
+            </button>
+            <div class="flex items-center gap-2">
+                <span class="font-extrabold text-sm tracking-wider text-[#E0E0E0]">IoT Smart Power Meter</span>
             </div>
-            <div class="flex-1">
-                <div class="flex items-center gap-2">
-                    <span id="dssBadge" class="px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-300">
-                        STATUS: OPTIMAL
-                    </span>
-                    <span id="lastUpdated" class="text-xs text-slate-500 font-mono">--:--:--</span>
-                </div>
-                <h3 id="dssTitle" class="text-base font-bold text-white mt-1">Sistem Dalam Batas Aman</h3>
-                <p id="dssMessage" class="text-xs text-slate-300 mt-0.5 leading-relaxed">
-                    Penggunaan energi stabil. Saldo diproyeksikan mencukupi kebutuhan operasional rumah.
-                </p>
-            </div>
-        </section>
+        </div>
+    </header>
 
-        <!-- Daya Kontrak Rumah (statis) -->
-        <section class="bg-slate-800/40 px-4 py-3 rounded-2xl border border-slate-700/60 flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
-                <i class="fa-solid fa-house-bolt text-amber-400"></i>
-                <span class="text-sm text-slate-300">Daya kontrak rumah (tetap)</span>
+    <!-- Konten Utama (Offset md:pl-64 untuk Sidebar Kiri) -->
+    <div class="md:pl-64 flex flex-col min-h-screen">
+        
+        <!-- Top Breadcrumb Bar -->
+        <header class="bg-[#181818]/90 border-b border-[#2E2E2E] px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between text-xs text-[#9E9E9E]">
+            <div class="hidden sm:flex items-center gap-1.5 truncate">
+                <a href="/" class="hover:text-[#E0E0E0] transition">Home</a>
+                <span>/</span>
+                <span class="text-[#E0E0E0] font-medium">Dashboard</span>
             </div>
-            <span class="font-mono font-bold text-white text-sm">{{ kontrak_daya_va|int }} VA</span>
-        </section>
-
-        <!-- Kartu Metrik Telemetri Utama -->
-        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <!-- Tegangan Efektif -->
-            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
-                <div class="flex items-center justify-between text-slate-400 text-xs">
-                    <span>Tegangan RMS</span>
-                    <i class="fa-solid fa-plug text-emerald-400"></i>
+            
+            <!-- Indikator Kapasitas Beban MCB (Full di mobile, di ujung kanan di desktop) -->
+            <div class="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 bg-[#121212] px-3 py-1.5 rounded-md border border-[#2E2E2E] flex-shrink-0">
+                <div class="flex items-center gap-1.5 whitespace-nowrap">
+                    <span class="text-[#9E9E9E] text-xs">Beban :</span>
+                    <span id="textLoadPct" class="font-mono text-[#E0E0E0] font-semibold text-xs font-tabular">0% dari {{ kontrak_daya_va|int }} VA</span>
                 </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                    <span id="valVoltage" class="text-2xl font-bold font-mono text-white">0.0</span>
-                    <span class="text-xs text-slate-400">Volt</span>
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block">GPIO35 · ADC1_CH7</span>
-            </div>
-
-            <!-- Arus Efektif -->
-            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
-                <div class="flex items-center justify-between text-slate-400 text-xs">
-                    <span>Kuat Arus RMS</span>
-                    <i class="fa-solid fa-gauge text-purple-400"></i>
-                </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                    <span id="valCurrent" class="text-2xl font-bold font-mono text-white">0.000</span>
-                    <span class="text-xs text-slate-400">Ampere</span>
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block">GPIO34 · ADC1_CH6</span>
-            </div>
-
-            <!-- Daya Aktif (Watt) -->
-            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
-                <div class="flex items-center justify-between text-slate-400 text-xs">
-                    <span>Daya Aktif (Riil)</span>
-                    <i class="fa-solid fa-lightbulb text-sky-400"></i>
-                </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                    <span id="valPower" class="text-2xl font-bold font-mono text-sky-400">0.0</span>
-                    <span class="text-xs text-slate-400">Watt</span>
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block">Rata-rata v·i 200 ms + EMA</span>
-            </div>
-
-            <!-- Daya Semu (VA) & Kapasitas MCB -->
-            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
-                <div class="flex items-center justify-between text-slate-400 text-xs">
-                    <span>Daya Semu (VA)</span>
-                    <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
-                </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                    <span id="valApparent" class="text-2xl font-bold font-mono text-amber-400">0.0</span>
-                    <span class="text-xs text-slate-400">VA</span>
-                </div>
-                <div class="w-full bg-slate-700/50 h-1.5 rounded-full mt-2 overflow-hidden">
-                    <div id="barLoadPct" class="bg-amber-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-                <span id="textLoadPct" class="text-[10px] text-slate-400 mt-1 block font-mono">0% dari batas MCB</span>
-            </div>
-        </section>
-
-        <!-- Kartu Token & Power Factor -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <!-- Saldo Token Listrik -->
-            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
-                <div class="flex items-center justify-between text-slate-400 text-xs">
-                    <span>Sisa Saldo Token</span>
-                    <i class="fa-solid fa-wallet text-emerald-400"></i>
-                </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                    <span id="valSaldo" class="text-2xl font-bold font-mono text-emerald-400">0.00</span>
-                    <span class="text-xs text-slate-400">kWh</span>
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block">Penyimpanan MicroSD Murni (/saldo.txt)</span>
-            </div>
-
-            <!-- Dynamic Token Runway (Estimasi Habis) -->
-            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
-                <div class="flex items-center justify-between text-slate-400 text-xs">
-                    <span>Dynamic Runway</span>
-                    <i class="fa-solid fa-hourglass-half text-amber-400"></i>
-                </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                    <span id="valRunway" class="text-2xl font-bold font-mono text-white">0.0</span>
-                    <span class="text-xs text-slate-400">Jam Tersisa</span>
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block">Saldo ÷ rata-rata prediksi 6 jam (TinyML)</span>
-            </div>
-
-            <!-- Power Factor (Faktor Daya) -->
-            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-2xl">
-                <div class="flex items-center justify-between text-slate-400 text-xs">
-                    <span>Faktor Daya (Cos &phi;)</span>
-                    <i class="fa-solid fa-compass text-sky-400"></i>
-                </div>
-                <div class="mt-2 flex items-baseline gap-1">
-                    <span id="valPf" class="text-2xl font-bold font-mono text-white">0.0</span>
-                    <span class="text-xs text-slate-400">%</span>
-                </div>
-                <span class="text-[11px] text-slate-500 mt-1 block">Daya Riil ÷ Daya Semu (dalam persen)</span>
-            </div>
-        </section>
-
-        <!-- Grafik Monitoring Real-time & Proyeksi Multi-Horizon TinyML -->
-        <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Grafik Line Live Watt vs VA (2 Kolom) -->
-            <div class="lg:col-span-2 bg-slate-800/50 border border-slate-700/60 p-5 rounded-2xl shadow-lg">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-chart-line text-amber-400"></i> Aliran Beban Real-time: Watt vs VA
-                    </h3>
-                    <span class="text-xs text-slate-500 font-mono">Interval 2 Detik · Batas kontrak {{ kontrak_daya_va|int }} VA</span>
-                </div>
-                <div class="relative h-[26rem] md:h-[32rem] w-full">
-                    <canvas id="liveChart"></canvas>
+                <div class="w-24 sm:w-28 lg:w-36 bg-[#1E1E1E] h-2 rounded-full overflow-hidden border border-[#2E2E2E] flex-shrink-0">
+                    <div id="barLoadPct" class="bg-[#3B82F6] h-full rounded-full transition-all duration-300" style="width: 0%"></div>
                 </div>
             </div>
+        </header>
 
-            <!-- Grafik Bar Proyeksi TinyML Q1 - Q4 (1 Kolom) -->
-            <div class="bg-slate-800/50 border border-slate-700/60 p-5 rounded-2xl shadow-lg flex flex-col">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="font-bold text-sm text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-brain text-purple-400"></i> Proyeksi TinyML 24 Jam
-                    </h3>
-                    <span class="text-[11px] text-slate-500">Multi-Horizon</span>
-                </div>
-                <div class="relative flex-1 min-h-[14rem] w-full">
-                    <canvas id="forecastChart"></canvas>
-                </div>
-                <p id="forecastSummary" class="text-xs text-slate-400 mt-3 text-center">Menunggu prediksi dari ESP32...</p>
-            </div>
-        </section>
+        <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
 
-    </main>
+            <!-- BARIS 1: Kartu Aliran Beban Utama Bergaya KaaIoT (Power out & Power in Style) -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-4" aria-label="Aliran Daya Utama">
+                
+                <!-- Kartu 1: Daya Aktif (Watt) -->
+                <div class="bg-[#1E1E1E] p-5 rounded-lg border border-[#2E2E2E] flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-[#9E9E9E] tracking-wide">Daya Aktif (Beban Kerja)</span>
+                    </div>
+
+                    <div class="py-4 flex items-center justify-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-[#3B82F6]/15 border border-[#3B82F6]/30 text-[#3B82F6] flex items-center justify-center text-2xl flex-shrink-0">
+                            <i class='bx bxs-zap'></i>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span id="valPower" class="text-4xl sm:text-5xl font-extrabold font-sans font-tabular text-[#E0E0E0] tracking-tight">—</span>
+                            <span class="text-sm font-semibold text-[#9E9E9E]">Watt</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kartu 2: Daya Semu (VA) -->
+                <div class="bg-[#1E1E1E] p-5 rounded-lg border border-[#2E2E2E] flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-[#9E9E9E] tracking-wide">Daya Semu (Volt x Ampere)</span>
+                    </div>
+
+                    <div class="py-4 flex items-center justify-center gap-4">
+                        <div class="w-12 h-12 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center text-2xl flex-shrink-0">
+                            <i class='bx bx-tachometer'></i>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <span id="valApparent" class="text-4xl sm:text-5xl font-extrabold font-sans font-tabular text-amber-400 tracking-tight">—</span>
+                            <span class="text-sm font-semibold text-[#9E9E9E]">VA</span>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- BARIS 2: Dua Kartu Saldo & Estimasi Waktu Pakai (KaaIoT Economy Style) -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-4" aria-label="Saldo & Estimasi Ketahanan Listrik">
+                
+                <!-- Kartu Saldo (Economy Style KaaIoT dengan background olive-lime & tag pill putih) -->
+                <div class="rounded-lg border border-[#2E2E2E] overflow-hidden flex flex-col justify-between relative bg-gradient-to-b from-[#1E1E1E] via-[#2d3a0f] to-[#465a11] p-5 shadow-sm">
+                    <div class="flex items-center justify-between relative z-10">
+                        <span class="text-xs font-medium text-[#E0E0E0]/90 tracking-wide uppercase">Sisa Kuota Listrik</span>
+                        <span class="text-[10px] font-sans text-[#E0E0E0]/80 bg-black/30 px-2 py-0.5 rounded flex items-center gap-1">
+                            <span>PRABAYAR</span>
+                        </span>
+                    </div>
+
+                    <!-- Angka Besar + Tag Kapsul Putih KaaIoT -->
+                    <div class="my-3 relative z-10 text-center">
+                        <div class="flex items-center justify-center gap-2.5">
+                            <i class='bx bx-wallet-alt text-3xl sm:text-4xl text-[#E0E0E0]/90'></i>
+                            <div class="flex items-baseline gap-1.5">
+                                <span id="valSaldo" class="text-4xl sm:text-5xl font-extrabold font-sans font-tabular text-[#E0E0E0] tracking-tight">—</span>
+                                <span class="text-sm font-bold text-[#E0E0E0]/80">/kWh</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex justify-center">
+                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E0E0E0] text-neutral-900 text-xs font-bold shadow-md">
+                                <i class='bx bx-check-shield text-xs text-neutral-700'></i>
+                                <span>Disinkronkan MicroSD</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kartu Estimasi Waktu Pakai -->
+                <div class="bg-[#1E1E1E] p-5 rounded-lg border border-[#2E2E2E] flex flex-col justify-between relative">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-[#9E9E9E] tracking-wide">Perkiraan Sisa Waktu Pemakaian</span>
+                    </div>
+
+                    <div class="my-3 text-center">
+                        <div class="flex items-center justify-center gap-2.5">
+                            <i class='bx bx-timer text-3xl sm:text-4xl text-amber-400'></i>
+                            <div class="flex items-baseline gap-1.5">
+                                <span id="valRunway" class="text-4xl sm:text-5xl font-extrabold font-sans font-tabular text-[#E0E0E0] tracking-tight">—</span>
+                                <span class="text-sm font-semibold text-[#9E9E9E]">Jam Tersisa</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 flex justify-center">
+                            <span class="inline-flex items-center gap-1 px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold">
+                                <i class='bx bx-network-chart text-xs'></i>
+                                <span>Proyeksi Pola Konsumsi 6 Jam</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- BARIS 3: Tiga Kartu Metrik Parameter Fisik True-RMS (TEGANGAN, ARUS, FAKTOR DAYA) -->
+            <section class="grid grid-cols-1 sm:grid-cols-3 gap-4" aria-label="Parameter Kualitas Kelistrikan Tegangan dan Arus">
+                
+                <!-- Kartu TEGANGAN / VOLTASE (RMS) -->
+                <div class="bg-[#1E1E1E] p-4 sm:p-5 rounded-lg border border-[#2E2E2E] flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-[#9E9E9E] tracking-wide">Tegangan Listrik (RMS)</span>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="flex items-center gap-2.5">
+                            <i class='bx bx-current-location text-2xl sm:text-3xl text-emerald-400'></i>
+                            <div class="flex items-baseline gap-1.5">
+                                <span id="valVoltage" class="text-3xl sm:text-4xl font-extrabold font-sans font-tabular text-emerald-400 tracking-tight">—</span>
+                                <span class="text-sm font-semibold text-[#9E9E9E]">Volt</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kartu KUAT ARUS (RMS) -->
+                <div class="bg-[#1E1E1E] p-4 sm:p-5 rounded-lg border border-[#2E2E2E] flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-[#9E9E9E] tracking-wide">Kuat Arus Beban (RMS)</span>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="flex items-center gap-2.5">
+                            <i class='bx bx-slider-alt text-2xl sm:text-3xl text-purple-400'></i>
+                            <div class="flex items-baseline gap-1.5">
+                                <span id="valCurrent" class="text-3xl sm:text-4xl font-extrabold font-sans font-tabular text-purple-400 tracking-tight">—</span>
+                                <span class="text-sm font-semibold text-[#9E9E9E]">Ampere</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kartu FAKTOR DAYA (Cos φ) -->
+                <div class="bg-[#1E1E1E] p-4 sm:p-5 rounded-lg border border-[#2E2E2E] flex flex-col justify-between">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-[#9E9E9E] tracking-wide">Faktor Daya (Cos &phi;)</span>
+                    </div>
+
+                    <div class="mt-3">
+                        <div class="flex items-center gap-2.5">
+                            <i class='bx bx-compass text-2xl sm:text-3xl text-sky-400'></i>
+                            <div class="flex items-baseline gap-1.5">
+                                <span id="valPf" class="text-3xl sm:text-4xl font-extrabold font-sans font-tabular text-sky-400 tracking-tight">—</span>
+                                <span class="text-sm font-semibold text-[#9E9E9E]">%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- BARIS 4: Rekomendasi & Tindakan Pendukung Keputusan (DSS) -->
+            <section class="bg-[#1E1E1E] rounded-lg border border-[#2E2E2E] overflow-hidden" aria-label="Rekomendasi dan Pendukung Keputusan">
+                <div class="px-5 py-3 border-b border-[#2E2E2E] flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-sm font-bold text-[#E0E0E0] tracking-wide">Rekomendasi &amp; Tindakan Sistem</h2>
+                    </div>
+                    <div class="text-xs text-[#9E9E9E] font-mono">
+                        <span>Pembaruan: <span id="lastUpdated" class="text-[#E0E0E0] font-tabular">—</span></span>
+                    </div>
+                </div>
+
+                <!-- Banner DSS -->
+                <div id="dssBanner" class="p-4 sm:p-5 transition-colors flex items-start gap-4 bg-[#1E1E1E] text-[#E0E0E0]">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                            <span id="dssBadge" class="px-2.5 py-0.5 rounded-full border border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[11px] font-semibold uppercase">
+                                STATUS: OPTIMAL
+                            </span>
+                        </div>
+                        <h3 id="dssTitle" class="text-sm sm:text-base font-bold text-[#E0E0E0] tracking-wide">Sistem Dalam Batas Aman</h3>
+                        <p id="dssMessage" class="text-xs sm:text-sm text-[#D4D4D4] mt-1 leading-relaxed">Penggunaan stabil, saldo mencukupi kebutuhan operasional rumah.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- BARIS 5: ApexCharts Real-Time (Area) & Proyeksi TinyML 24 Jam (BAR CHART) -->
+            <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                
+                <!-- Live Chart Watt vs VA: APEXCHARTS TIPE AREA -->
+                <div class="lg:col-span-2 bg-[#1E1E1E] p-5 rounded-lg border border-[#2E2E2E] flex flex-col">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-[#E0E0E0] flex items-center gap-2">
+                                <i class='bx bx-line-chart text-[#3B82F6] text-base'></i>
+                                <span>Aliran Beban Real-time</span>
+                            </h3>
+                            <p class="text-xs text-[#9E9E9E] mt-0.5">Sampling interval 2 detik &bull; Area chart zoom otomatis</p>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs">
+                            <span class="inline-flex items-center gap-1.5 text-[#D4D4D4]">
+                                <span class="w-3 h-1 bg-[#3B82F6] rounded-sm inline-block"></span> Daya Aktif (W)
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 text-[#D4D4D4]">
+                                <span class="w-3 h-1 bg-amber-400 rounded-sm inline-block"></span> Daya Semu (VA)
+                            </span>
+                        </div>
+                    </div>
+                    <div class="relative h-[22rem] sm:h-[26rem] md:h-[28rem] w-full mt-2">
+                        <div id="liveChart" class="w-full h-full"></div>
+                    </div>
+                </div>
+
+                <!-- Proyeksi TinyML 24 Jam: TETAP BAR CHART -->
+                <div class="bg-[#1E1E1E] p-5 rounded-lg border border-[#2E2E2E] flex flex-col">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h3 class="text-sm font-bold text-[#E0E0E0] flex items-center gap-2">
+                                <i class='bx bx-bar-chart-alt-2 text-[#3B82F6] text-base'></i>
+                                <span>Proyeksi 24 Jam</span>
+                            </h3>
+                            <p class="text-xs text-[#9E9E9E] mt-0.5">Bar chart multi-horizon per jendela 6 jam</p>
+                        </div>
+                    </div>
+                    <div class="relative flex-1 min-h-[14rem] sm:min-h-[16rem] w-full mt-2">
+                        <div id="forecastChart" class="w-full h-full"></div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-[#2E2E2E]">
+                        <p id="forecastSummary" class="text-xs text-[#9E9E9E] text-center font-tabular">Menunggu data prediksi...</p>
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="mt-8 border-t border-[#2E2E2E] bg-[#181818] py-3.5 px-4 text-center text-xs text-[#9E9E9E]">
+            <span>Smart Power Meter</span>
+        </footer>
+
     </div>
 
-    <!-- Script Koneksi WebSocket & Pembaruan UI -->
+    <!-- Script Logika WebSocket & ApexCharts -->
     <script>
+        function toggleMobileMenu() {
+            const drawer = document.getElementById('sidebarDrawer');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (!drawer || !backdrop) return;
+            const isOpen = drawer.classList.contains('translate-x-0');
+            if (isOpen) {
+                drawer.classList.remove('translate-x-0');
+                drawer.classList.add('-translate-x-full');
+                backdrop.classList.add('hidden');
+            } else {
+                drawer.classList.remove('-translate-x-full');
+                drawer.classList.add('translate-x-0');
+                backdrop.classList.remove('hidden');
+            }
+        }
+
         let liveChart = null;
         let forecastChart = null;
         const MAX_POINTS = 60; // 60 titik x 2 detik = 2 menit
@@ -215,118 +414,174 @@
         let wsOpen = false;
         let lastPacketMs = 0;
 
-        const CONTRACT_VA = {{ kontrak_daya_va|int }}; // statis, ditentukan server
+        const CONTRACT_VA = {{ kontrak_daya_va|int }}; // statis dari Jinja2
 
-        // Inisialisasi Grafik
         window.addEventListener('DOMContentLoaded', () => {
             initCharts();
             connectWebSocket();
         });
 
-        // Garis batas kontrak: digambar hanya bila masuk rentang sumbu Y,
-        // sehingga tidak memaksa skala melebar sampai 1300 VA.
-        const contractLimitPlugin = {
-            id: 'contractLimit',
-            afterDatasetsDraw(chart) {
-                const { ctx, chartArea, scales: { y } } = chart;
-                if (CONTRACT_VA < y.min || CONTRACT_VA > y.max) return;
-                const py = y.getPixelForValue(CONTRACT_VA);
-                ctx.save();
-                ctx.strokeStyle = '#f43f5e';
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([6, 4]);
-                ctx.beginPath();
-                ctx.moveTo(chartArea.left, py);
-                ctx.lineTo(chartArea.right, py);
-                ctx.stroke();
-                ctx.fillStyle = '#f43f5e';
-                ctx.font = '11px sans-serif';
-                ctx.textAlign = 'right';
-                ctx.fillText(`Batas kontrak ${CONTRACT_VA} VA`, chartArea.right - 4, py - 5);
-                ctx.restore();
-            }
-        };
-
-        // Skala Y mengikuti data (zoom otomatis) agar perubahan kecil terlihat.
         function fitLiveYAxis() {
             const all = liveWatts.concat(liveApparents);
-            if (!all.length) return;
+            if (!all.length || !liveChart) return;
             const lo = Math.min(...all), hi = Math.max(...all);
-            const span = Math.max(hi - lo, 4);          // rentang minimum 4 satuan
+            const span = Math.max(hi - lo, 4);
             const pad = span * 0.3;
-            const y = liveChart.options.scales.y;
-            y.min = Math.max(0, Math.floor(lo - pad));
-            y.max = Math.ceil(hi + pad);
+            const minY = Math.max(0, Math.floor(lo - pad));
+            const maxY = Math.ceil(hi + pad);
+
+            liveChart.updateOptions({
+                yaxis: {
+                    min: minY,
+                    max: maxY,
+                    labels: {
+                        style: { colors: '#9E9E9E', fontSize: '11px', fontFamily: 'Inter, sans-serif' },
+                        formatter: (val) => val.toFixed(0)
+                    },
+                    title: { text: 'Beban (W / VA)', style: { color: '#9E9E9E', fontSize: '11px', fontFamily: 'Inter, sans-serif' } }
+                }
+            }, false, false);
         }
 
         function initCharts() {
-            // Live Line Chart
-            const ctxLive = document.getElementById('liveChart').getContext('2d');
-            liveChart = new Chart(ctxLive, {
-                type: 'line',
-                data: {
-                    labels: liveLabels,
-                    datasets: [
-                        {
-                            label: 'Daya Semu (VA)',
-                            data: liveApparents,
-                            borderColor: '#f59e0b',
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            fill: true,
-                            pointRadius: 2
-                        },
-                        {
-                            label: 'Daya Aktif (W)',
-                            data: liveWatts,
-                            borderColor: '#38bdf8',
-                            borderWidth: 2,
-                            tension: 0.3,
-                            pointRadius: 2
-                        }
-                    ]
+            // Live Chart: APEXCHARTS TIPE AREA (Watt vs VA)
+            const optionsLive = {
+                chart: {
+                    type: 'area',
+                    height: '100%',
+                    background: 'transparent',
+                    fontFamily: 'Inter, sans-serif',
+                    toolbar: { show: false },
+                    animations: { enabled: false }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' } },
-                        y: {
-                            grid: { color: 'rgba(51, 65, 85, 0.3)' },
-                            ticks: { color: '#94a3b8', maxTicksLimit: 10 },
-                            title: { display: true, text: 'Beban (W / VA)', color: '#94a3b8' },
-                            beginAtZero: false
-                        }
+                series: [
+                    { name: 'Daya Semu (VA)', data: liveApparents },
+                    { name: 'Daya Aktif (W)', data: liveWatts }
+                ],
+                colors: ['#F59E0B', '#3B82F6'],
+                stroke: {
+                    curve: 'smooth',
+                    width: [2, 2.5],
+                    dashArray: [4, 0] // VA putus-putus, Watt solid
+                },
+                fill: {
+                    type: 'gradient',
+                    gradient: {
+                        shadeIntensity: 1,
+                        opacityFrom: 0.35,
+                        opacityTo: 0.05,
+                        stops: [0, 95, 100]
+                    }
+                },
+                dataLabels: { enabled: false },
+                markers: { size: 0, hover: { size: 4 } },
+                xaxis: {
+                    categories: liveLabels,
+                    labels: {
+                        style: { colors: '#9E9E9E', fontSize: '10px', fontFamily: 'Inter, sans-serif' },
+                        rotate: 0,
+                        maxTicksLimit: 8
                     },
-                    plugins: { legend: { labels: { color: '#e2e8f0' } } }
+                    axisBorder: { color: '#2E2E2E' },
+                    axisTicks: { color: '#2E2E2E' }
                 },
-                plugins: [contractLimitPlugin]
-            });
-
-            // TinyML Horizon Forecast Bar Chart
-            const ctxForecast = document.getElementById('forecastChart').getContext('2d');
-            forecastChart = new Chart(ctxForecast, {
-                type: 'bar',
-                data: {
-                    labels: ['0-6 Jam (Q1)', '6-12 Jam (Q2)', '12-18 Jam (Q3)', '18-24 Jam (Q4)'],
-                    datasets: [{
-                        label: 'Proyeksi Energi (kWh)',
-                        data: [0, 0, 0, 0],
-                        backgroundColor: ['#a855f7', '#818cf8', '#38bdf8', '#34d399'],
-                        borderRadius: 8
+                yaxis: {
+                    labels: {
+                        style: { colors: '#9E9E9E', fontSize: '11px', fontFamily: 'Inter, sans-serif' },
+                        formatter: (val) => val ? val.toFixed(0) : '0'
+                    },
+                    title: { text: 'Beban (W / VA)', style: { color: '#9E9E9E', fontSize: '11px', fontFamily: 'Inter, sans-serif' } }
+                },
+                grid: {
+                    borderColor: '#2E2E2E',
+                    strokeDashArray: 3,
+                    xaxis: { lines: { show: false } },
+                    yaxis: { lines: { show: true } }
+                },
+                annotations: {
+                    yaxis: [{
+                        y: CONTRACT_VA,
+                        borderColor: '#EF4444',
+                        strokeDashArray: 5,
+                        borderWidth: 1.5,
+                        label: {
+                            borderColor: '#EF4444',
+                            style: {
+                                color: '#FFFFFF',
+                                background: '#B91C1C',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                fontFamily: 'Inter'
+                            },
+                            text: `Batas Kontrak ${CONTRACT_VA} VA`
+                        }
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } } },
-                        y: { grid: { color: 'rgba(51, 65, 85, 0.3)' }, ticks: { color: '#94a3b8' }, suggestedMin: 0 }
-                    },
-                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.parsed.y.toFixed(3)} kWh` } } }
+                legend: { show: false },
+                tooltip: {
+                    theme: 'dark',
+                    x: { show: true },
+                    y: {
+                        formatter: (val, opts) => `${val ? val.toFixed(1) : '0'} ${opts.seriesIndex === 0 ? 'VA' : 'Watt'}`
+                    }
                 }
-            });
+            };
+
+            liveChart = new ApexCharts(document.getElementById('liveChart'), optionsLive);
+            liveChart.render();
+
+            // Proyeksi TinyML 24 Jam: TETAP BAR CHART
+            const optionsForecast = {
+                chart: {
+                    type: 'bar',
+                    height: '100%',
+                    background: 'transparent',
+                    toolbar: { show: false },
+                    animations: { enabled: false }
+                },
+                series: [{
+                    name: 'Proyeksi Energi',
+                    data: [0, 0, 0, 0]
+                }],
+                colors: ['#3B82F6', '#60A5FA', '#93C5FD', '#10B981'],
+                plotOptions: {
+                    bar: {
+                        borderRadius: 4,
+                        columnWidth: '50%',
+                        distributed: true
+                    }
+                },
+                dataLabels: { enabled: false },
+                xaxis: {
+                    categories: ['Q1 (0-6h)', 'Q2 (6-12h)', 'Q3 (12-18h)', 'Q4 (18-24h)'],
+                    labels: {
+                        style: { colors: '#9E9E9E', fontSize: '10px', fontFamily: 'Inter, sans-serif' }
+                    },
+                    axisBorder: { color: '#2E2E2E' },
+                    axisTicks: { color: '#2E2E2E' }
+                },
+                yaxis: {
+                    labels: {
+                        style: { colors: '#9E9E9E', fontSize: '10px', fontFamily: 'Inter, sans-serif' },
+                        formatter: (val) => val ? val.toFixed(2) : '0.00'
+                    },
+                    title: { text: 'kWh', style: { color: '#9E9E9E', fontSize: '10px', fontFamily: 'Inter, sans-serif' } }
+                },
+                grid: {
+                    borderColor: '#2E2E2E',
+                    strokeDashArray: 3
+                },
+                legend: { show: false },
+                tooltip: {
+                    theme: 'dark',
+                    y: {
+                        formatter: (val) => `${val.toFixed(3)} kWh`
+                    }
+                }
+            };
+
+            forecastChart = new ApexCharts(document.getElementById('forecastChart'), optionsForecast);
+            forecastChart.render();
         }
 
         function connectWebSocket() {
@@ -353,8 +608,8 @@
 
             ws.onclose = () => {
                 wsOpen = false;
-                document.getElementById('wsDot').className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse";
-                document.getElementById('wsStatus').innerText = "Terputus (Reconnecting...)";
+                document.getElementById('wsDot').className = "w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse flex-shrink-0";
+                document.getElementById('wsStatus').innerText = "Terputus (Menghubungkan ulang...)";
                 setTimeout(connectWebSocket, 3000);
             };
         }
@@ -364,13 +619,13 @@
             const dot = document.getElementById('wsDot');
             const txt = document.getElementById('wsStatus');
             if (lastPacketMs === 0) {
-                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0";
                 txt.innerText = "Server terhubung · menunggu ESP32";
             } else if (Date.now() - lastPacketMs > 10000) {
-                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse";
+                dot.className = "w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0";
                 txt.innerText = "ESP32 tidak mengirim data";
             } else {
-                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500";
+                dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-400 flex-shrink-0";
                 txt.innerText = "Live · ESP32 terhubung";
             }
         }
@@ -380,55 +635,61 @@
             try { return JSON.parse(str); } catch (e) { return null; }
         }
 
-function updateDashboardUI(data) {
-            // Update Angka Metrologi (format persis sesuai payload ESP32)
+        function updateDashboardUI(data) {
+            // Update Angka Metrologi
             const runway = Number(data.runway_hours || 0);
             document.getElementById('valVoltage').innerText = Number(data.voltage || 0).toFixed(1);
             document.getElementById('valCurrent').innerText = Number(data.current || 0).toFixed(3);
             document.getElementById('valPower').innerText = Number(data.power || 0).toFixed(1);
             document.getElementById('valApparent').innerText = Number(data.apparent_power || 0).toFixed(1);
             document.getElementById('valSaldo').innerText = Number(data.saldo_kwh || 0).toFixed(2);
-            // Firmware mengirim 999 saat tidak ada beban; OLED membatasi 99.9
             document.getElementById('valRunway').innerText = runway.toFixed(1);
-            // pf dikirim ESP32 dalam persen (0-100)
             document.getElementById('valPf').innerText = Number(data.pf || 0).toFixed(1);
 
             // Kapasitas MCB (%) terhadap kontrak statis
-            const loadPct = Math.min(100, Math.round((Number(data.apparent_power || 0) / CONTRACT_VA) * 100));
+            const apparent = Number(data.apparent_power || 0);
+            const loadPct = Math.min(100, Math.round((apparent / CONTRACT_VA) * 100));
             const bar = document.getElementById('barLoadPct');
             bar.style.width = loadPct + '%';
-            bar.className = "h-full rounded-full transition-all duration-300 " + (loadPct >= 85 ? "bg-rose-500" : "bg-amber-400");
-            document.getElementById('textLoadPct').innerText = `${loadPct}% dari batas ${CONTRACT_VA} VA`;
+            
+            if (loadPct >= 85) {
+                bar.className = "h-full rounded-full transition-all duration-300 bg-rose-500";
+            } else if (loadPct >= 70) {
+                bar.className = "h-full rounded-full transition-all duration-300 bg-amber-400";
+            } else {
+                bar.className = "h-full rounded-full transition-all duration-300 bg-[#3B82F6]";
+            }
+            document.getElementById('textLoadPct').innerText = `${loadPct}% dari ${CONTRACT_VA} VA`;
 
-            // Banner DSS
+            // Active Alerts / Banner Rekomendasi DSS Bergaya KaaIoT dengan Boxicons
             if (data.dss) {
                 const dss = data.dss;
-                document.getElementById('dssBadge').innerText = `STATUS: ${dss.status}`;
+                document.getElementById('dssBadge').innerText = dss.status;
                 document.getElementById('dssTitle').innerText = dss.title;
                 document.getElementById('dssMessage').innerText = dss.message;
-                document.getElementById('lastUpdated').innerText = (data.timestamp || '').split(' ')[1] || '';
+                document.getElementById('lastUpdated').innerText = (data.timestamp || '').split(' ')[1] || '—';
 
                 const banner = document.getElementById('dssBanner');
+                const badge = document.getElementById('dssBadge');
+                const iconWrapper = document.getElementById('dssIconWrapper');
+                const icon = document.getElementById('dssIcon');
+
                 if (dss.status === 'DANGER') {
-                    banner.className = "p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-rose-950/40 border-rose-500/40";
-                    document.getElementById('dssBadge').className = "px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-rose-500/20 text-rose-300";
-                    document.getElementById('dssIconWrapper').className = "p-2.5 rounded-xl bg-rose-500/20 text-rose-400 mt-0.5";
-                    document.getElementById('dssIcon').className = "fa-solid fa-triangle-exclamation text-xl";
+                    if (badge) badge.className = "px-2.5 py-0.5 rounded-full border border-rose-500/60 text-rose-400 bg-rose-500/10 text-[11px] font-semibold uppercase";
+                    if (iconWrapper) iconWrapper.className = "w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center flex-shrink-0 mt-0.5";
+                    if (icon) icon.className = "bx bxs-error-alt text-xl";
                 } else if (dss.status === 'WARNING') {
-                    banner.className = "p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-amber-950/40 border-amber-500/40";
-                    document.getElementById('dssBadge').className = "px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-amber-500/20 text-amber-300";
-                    document.getElementById('dssIconWrapper').className = "p-2.5 rounded-xl bg-amber-500/20 text-amber-400 mt-0.5";
-                    document.getElementById('dssIcon').className = "fa-solid fa-bell text-xl";
+                    if (badge) badge.className = "px-2.5 py-0.5 rounded-full border border-amber-500/60 text-amber-400 bg-amber-500/10 text-[11px] font-semibold uppercase";
+                    if (iconWrapper) iconWrapper.className = "w-10 h-10 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5";
+                    if (icon) icon.className = "bx bxs-bell-ring text-xl";
                 } else if (dss.status === 'INFO') {
-                    banner.className = "p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-sky-950/40 border-sky-500/40";
-                    document.getElementById('dssBadge').className = "px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-sky-500/20 text-sky-300";
-                    document.getElementById('dssIconWrapper').className = "p-2.5 rounded-xl bg-sky-500/20 text-sky-400 mt-0.5";
-                    document.getElementById('dssIcon').className = "fa-solid fa-circle-info text-xl";
+                    if (badge) badge.className = "px-2.5 py-0.5 rounded-full border border-sky-500/60 text-sky-400 bg-sky-500/10 text-[11px] font-semibold uppercase";
+                    if (iconWrapper) iconWrapper.className = "w-10 h-10 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center flex-shrink-0 mt-0.5";
+                    if (icon) icon.className = "bx bxs-info-circle text-xl";
                 } else {
-                    banner.className = "p-4 rounded-2xl border transition-all duration-300 flex items-start gap-4 bg-emerald-950/30 border-emerald-500/30";
-                    document.getElementById('dssBadge').className = "px-2 py-0.5 rounded text-[11px] font-bold tracking-wider uppercase bg-emerald-500/20 text-emerald-300";
-                    document.getElementById('dssIconWrapper').className = "p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 mt-0.5";
-                    document.getElementById('dssIcon').className = "fa-solid fa-shield-halved text-xl";
+                    if (badge) badge.className = "px-2.5 py-0.5 rounded-full border border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[11px] font-semibold uppercase";
+                    if (iconWrapper) iconWrapper.className = "w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5";
+                    if (icon) icon.className = "bx bxs-shield-check text-xl";
                 }
             }
 
@@ -444,20 +705,28 @@ function updateDashboardUI(data) {
                 liveLabels.push(timeLabel);
                 liveWatts.push(Number(data.power || 0));
                 liveApparents.push(Number(data.apparent_power || 0));
-                fitLiveYAxis();
-                liveChart.update('none');
+
+                if (liveChart) {
+                    liveChart.updateSeries([
+                        { name: 'Daya Semu (VA)', data: [...liveApparents] },
+                        { name: 'Daya Aktif (W)', data: [...liveWatts] }
+                    ], false);
+                    liveChart.updateOptions({
+                        xaxis: { categories: [...liveLabels] }
+                    }, false, false);
+                    fitLiveYAxis();
+                }
             }
 
-            // TinyML Forecast: q1..q4 = energi (kWh) per jendela 6 jam ke depan
+            // TinyML Forecast: q1..q4 (Bar Chart)
             if (forecastChart) {
                 const q = ['q1', 'q2', 'q3', 'q4'].map(k => Number(data[k] || 0));
-                forecastChart.data.datasets[0].data = q;
-                forecastChart.update('none');
+                forecastChart.updateSeries([{ name: 'Proyeksi Energi', data: q }], false);
                 const total = q.reduce((a, b) => a + b, 0);
                 const tarif = Number(data.tarif_per_kwh || 0);
                 document.getElementById('forecastSummary').innerHTML =
-                    `Total 24 jam: <span class="text-white font-mono">${total.toFixed(2)} kWh</span>` +
-                    (tarif ? ` · ≈ <span class="text-amber-400 font-mono">Rp ${Math.round(total * tarif).toLocaleString('id-ID')}</span>` : '');
+                    `Total proyeksi 24 jam: <strong class="text-[#E0E0E0] font-mono font-bold">${total.toFixed(2)} kWh</strong>` +
+                    (tarif ? ` · perkiraan <strong class="text-amber-400 font-mono font-bold">Rp ${Math.round(total * tarif).toLocaleString('id-ID')}</strong>` : '');
             }
         }
     </script>

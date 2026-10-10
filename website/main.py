@@ -406,7 +406,7 @@ async def get_history_data(
             "peak_va": round(peak_va, 1),
             "peak_watt": round(peak_watt, 1),
             "avg_pf": round(avg_pf, 1),
-            "estimated_cost_rp": int(total_kwh * TARIF_PER_KWH),
+            "estimated_cost_rp": int(round(total_kwh * TARIF_PER_KWH)),
             "kontrak_daya_va": KONTRAK_DAYA_VA
         },
         "series": sampled_data,
