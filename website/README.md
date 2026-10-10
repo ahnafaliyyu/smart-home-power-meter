@@ -220,3 +220,4 @@ Halaman riwayat dilengkapi serangkaian optimasi rendering untuk menjamin antarmu
 2. **Staggered Asynchronous Rendering**: Grafik dirender secara bertahap menggunakan *micro-task queue* agar thread JavaScript browser tidak terblokir.
 3. **Single DOM Reflow**: Injeksi 50 baris tabel telemetri menggunakan `DocumentFragment` untuk menghindari *DOM thrashing*.
 4. **Database Indexing**: Kolom `timestamp` pada SQLite dipasangi B-Tree index (`idx_telemetry_ts`) sehingga kueri rentang jutaan baris tetap responsif.
+
