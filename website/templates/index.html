@@ -318,11 +318,6 @@
                 <!-- Banner DSS -->
                 <div id="dssBanner" class="p-4 sm:p-5 transition-colors flex items-start gap-4 bg-[#1E1E1E] text-[#E0E0E0]">
                     <div class="flex-1 min-w-0">
-                        <div class="flex flex-wrap items-center gap-2 mb-1.5">
-                            <span id="dssBadge" class="px-2.5 py-0.5 rounded-full border border-emerald-500/40 text-emerald-400 bg-emerald-500/10 text-[11px] font-semibold uppercase">
-                                STATUS: OPTIMAL
-                            </span>
-                        </div>
                         <h3 id="dssTitle" class="text-sm sm:text-base font-bold text-[#E0E0E0] tracking-wide">Sistem Dalam Batas Aman</h3>
                         <p id="dssMessage" class="text-xs sm:text-sm text-[#D4D4D4] mt-1 leading-relaxed">Penggunaan stabil, saldo mencukupi kebutuhan operasional rumah.</p>
                     </div>
@@ -416,31 +411,60 @@
 
         const CONTRACT_VA = {{ kontrak_daya_va|int }}; // statis dari Jinja2
 
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             initCharts();
+            await loadInitialChartHistory();
             connectWebSocket();
         });
 
-        function fitLiveYAxis() {
-            const all = liveWatts.concat(liveApparents);
-            if (!all.length || !liveChart) return;
-            const lo = Math.min(...all), hi = Math.max(...all);
-            const span = Math.max(hi - lo, 4);
-            const pad = span * 0.3;
-            const minY = Math.max(0, Math.floor(lo - pad));
-            const maxY = Math.ceil(hi + pad);
+        // Ambil data telemetri terakhir dari database saat halaman dibuka agar grafik tidak kosong saat ESP32 baru disambungkan
+        async function loadInitialChartHistory() {
+            try {
+                const res = await fetch('/api/history?limit=30');
+                const json = await res.json();
+                if (json.status === 'success' && json.series && json.series.length > 0) {
+                    const recent = json.series.slice(-30);
+                    liveLabels = recent.map(d => (d.timestamp || '').split(' ')[1] || d.timestamp);
+                    liveWatts = recent.map(d => Number(d.power || 0));
+                    liveApparents = recent.map(d => Number(d.apparent_power || 0));
+                    updateLiveChartUI();
+                }
+            } catch (e) {
+                console.warn("Gagal memuat histori awal live chart:", e);
+            }
+        }
 
-            liveChart.updateOptions({
-                yaxis: {
+        // Fungsi pembaruan grafik terpadu dan aman dari TypeError null/undefined
+        function updateLiveChartUI() {
+            if (!liveChart || !liveLabels.length) return;
+            const all = liveWatts.concat(liveApparents);
+            let yaxisOpt = undefined;
+            if (all.length > 0) {
+                const lo = Math.min(...all), hi = Math.max(...all);
+                const span = Math.max(hi - lo, 4);
+                const pad = span * 0.3;
+                const minY = Math.max(0, Math.floor(lo - pad));
+                const maxY = Math.ceil(hi + pad);
+                yaxisOpt = {
                     min: minY,
                     max: maxY,
                     labels: {
                         style: { colors: '#9E9E9E', fontSize: '11px', fontFamily: 'Inter, sans-serif' },
-                        formatter: (val) => val.toFixed(0)
+                        formatter: (val) => (val != null && !isNaN(val)) ? Number(val).toFixed(0) : '0'
                     },
                     title: { text: 'Beban (W / VA)', style: { color: '#9E9E9E', fontSize: '11px', fontFamily: 'Inter, sans-serif' } }
-                }
+                };
+            }
+
+            liveChart.updateOptions({
+                xaxis: { categories: [...liveLabels] },
+                ...(yaxisOpt ? { yaxis: yaxisOpt } : {})
             }, false, false);
+
+            liveChart.updateSeries([
+                { name: 'Daya Semu (VA)', data: [...liveApparents] },
+                { name: 'Daya Aktif (W)', data: [...liveWatts] }
+            ], false);
         }
 
         function initCharts() {
@@ -693,8 +717,8 @@
                 }
             }
 
-            // Update Live Line Chart (hanya data segar dari ESP32)
-            const fresh = data.device_ready !== false && (data.age_s === undefined || Number(data.age_s) < 10);
+            // Update Live Line Chart (data segar dari ESP32)
+            const fresh = data.device_ready !== false && (data.age_s === undefined || Number(data.age_s) < 15);
             if (fresh) {
                 const timeLabel = (data.timestamp || '').split(' ')[1] || new Date().toLocaleTimeString();
                 if (liveLabels.length >= MAX_POINTS) {
@@ -706,16 +730,7 @@
                 liveWatts.push(Number(data.power || 0));
                 liveApparents.push(Number(data.apparent_power || 0));
 
-                if (liveChart) {
-                    liveChart.updateSeries([
-                        { name: 'Daya Semu (VA)', data: [...liveApparents] },
-                        { name: 'Daya Aktif (W)', data: [...liveWatts] }
-                    ], false);
-                    liveChart.updateOptions({
-                        xaxis: { categories: [...liveLabels] }
-                    }, false, false);
-                    fitLiveYAxis();
-                }
+                updateLiveChartUI();
             }
 
             // TinyML Forecast: q1..q4 (Bar Chart)
