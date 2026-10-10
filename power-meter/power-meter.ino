@@ -734,18 +734,23 @@ void calculateACMetricsPresisi() {
 
 // ================= ADAPTASI AWAL TINYML =================
 void warmupTinyMLWithCurrentLoad() {
-  float active_kw = (p_active_stable > 0.1f) ? (p_active_stable / 1000.0f) : (p_active / 1000.0f);
-  float initial_energy_15m = active_kw * 0.25f;
+  // Ambil daya saat ini; jika nol (tanpa beban), gunakan baseline beban rumah tangga minimal (misal 60 Watt / 0.06 kW)
+  float active_kw = (p_active_stable > 0.05f) ? (p_active_stable / 1000.0f) : 0.060f;
+  float initial_energy_15m = active_kw * 0.25f; // Konsumsi per 15 menit
 
-  if (initial_energy_15m < 0.002f) initial_energy_15m = 0.002f;
-
+  // Isi seluruh 96 buffer agar fitur lag tidak nol
   for (int i = 0; i < BUFFER_SIZE; i++) {
     energy_buffer_15m[i] = initial_energy_15m;
   }
 
+  // Eksekusi prediksi awal agar Q1 - Q4 langsung memiliki nilai
   float features[8];
   build_features(features);
   tinyml_predict(features, predicted_q);
+  
+  is_ml_warmed_up = true;
+  Serial.printf("[TinyML] Warm-up selesai: Q1=%.3f, Q2=%.3f, Q3=%.3f, Q4=%.3f\n",
+                predicted_q[0], predicted_q[1], predicted_q[2], predicted_q[3]);
 }
 
 // ================= PERBAIKAN FITUR TINYML SINKRON DENGAN MODEL BARU =================
@@ -795,7 +800,14 @@ void handleMQTT() {
   }
   if (millis() - prevMqttRetry >= 5000) {
     prevMqttRetry = millis();
-    mqttClient.connect(mqttClientId.c_str());
+    if (mqttClient.connect(mqttClientId.c_str())) {
+      // Jika baru terhubung dan Q masih nol, hitung ulang prediksi sekali
+      if (predicted_q[0] == 0.0f && predicted_q[3] == 0.0f) {
+        float features[8];
+        build_features(features);
+        tinyml_predict(features, predicted_q);
+      }
+    }
   }
 }
 
